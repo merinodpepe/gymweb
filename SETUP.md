@@ -51,7 +51,8 @@ This is the easiest route: Vercel creates the Neon database and sets the connect
 
 - **Dashboard → Registrar peso y pasos**: log today's weight.
 - **Importar**: in Lyfta, open a workout → share → copy as text, paste it and press **Analizar**. Check the preview, then **Guardar**.
-  - The preview shows *"Volumen cuadra (con/sin calentamientos)"*: this tells you how Lyfta computes volume (the open question in the plan). If it says the volume doesn't match, the workout can still be saved: it's only a warning.
+  - The share footer (*"Mira el entrenamiento…"* and the link) is ignored, and the `1.`, `2.` numbering is stripped from exercise names, so you can paste the export exactly as Lyfta gives it.
+  - **Expected warning:** *"El volumen de Lyfta … no cuadra … diferencia N kg"*. On your real export (5 Oct 2026), Lyfta reports 6 893.5 kg, but the sets add up to 6 569.5 kg: Lyfta adds 324 kg that we can't explain yet. It's only a warning: your sets are saved exactly as listed, and all the statistics use the sets, never Lyfta's total.
   - Importing the same workout again gives *"Ya hay un entreno…"* with a **Reemplazar** button.
   - If the parser doesn't recognise your real Lyfta text (different date/header format), the warnings say which line failed. The raw text is always stored, so nothing is lost and it can be re-parsed later.
 - **Datos → Alias**: map Lyfta names to one canonical name and a muscle group (e.g. *Lever Military Press → Press militar, Hombro*). This feeds the weekly sets-per-muscle table and merges history across routines.

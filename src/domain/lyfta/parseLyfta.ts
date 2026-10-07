@@ -26,6 +26,11 @@ const HEADER_RE =
 const SET_RE =
   /^Serie\s+(\d+):\s*([\d.,]+)\s*kg\s*x\s*(\d+)\s*reps?(?:\s*\((Calentamiento)\))?\s*$/i;
 
+/** Lyfta's share footer ("Mira el entrenamiento y únete a mí en Lyfta." + link). */
+const FOOTER_RE = /^(https?:\/\/\S+|.*únete a mí en Lyfta\.?)$/iu;
+/** Exercise names are numbered in the export: "1. Lever Military Press". */
+const stripNumber = (name: string) => name.replace(/^\d+\.\s+/, "");
+
 /** "6 893.5" → 6893.5, "1.234,5" → 1234.5, "72,5" → 72.5. */
 export function parseNumber(raw: string): number {
   let s = raw.replace(/[\s  ]/g, "");
@@ -57,7 +62,7 @@ export function parseLyfta(text: string): ParseResult {
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .map((l) => l.replace(/[  ]/g, " ").trim())
-    .filter((l) => l.length > 0);
+    .filter((l) => l.length > 0 && !FOOTER_RE.test(l));
 
   const workout: Workout = {
     date: "1970-01-01T00:00",
@@ -112,7 +117,8 @@ export function parseLyfta(text: string): ParseResult {
 
   const flushPendingWithoutSets = () => {
     if (pending.length === 0) return;
-    const [name, ...notes] = pending;
+    const [rawName, ...notes] = pending;
+    const name = stripNumber(rawName);
     workout.exercises.push({ name, notes: notes.length ? notes.join("\n") : null, sets: [] });
     warnings.push(`El ejercicio «${name}» no tiene series.`);
     pending = [];
@@ -133,7 +139,7 @@ export function parseLyfta(text: string): ParseResult {
     };
     if (pending.length > 0) {
       const [name, ...notes] = pending;
-      current = { name, notes: notes.length ? notes.join("\n") : null, sets: [] };
+      current = { name: stripNumber(name), notes: notes.length ? notes.join("\n") : null, sets: [] };
       workout.exercises.push(current);
       pending = [];
     }
@@ -167,7 +173,7 @@ export function parseLyfta(text: string): ParseResult {
     else if (volumeMatches(volumeWorking, workout.total_volume_kg)) volumeRule = "working_sets";
     else
       warnings.push(
-        `El volumen de Lyfta (${workout.total_volume_kg} kg) no cuadra ni con todas las series (${volumeAll} kg) ni sin calentamientos (${volumeWorking} kg).`,
+        `El volumen de Lyfta (${workout.total_volume_kg} kg) no cuadra ni con todas las series (${volumeAll} kg) ni sin calentamientos (${volumeWorking} kg): diferencia ${round1(workout.total_volume_kg - volumeAll)} kg. Las series se guardan tal cual; solo es un aviso.`,
       );
   }
 

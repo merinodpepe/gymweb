@@ -9,12 +9,14 @@ import { fmt, fmtDate } from "@/lib/format";
 import { ExerciseCard } from "../exercise-card";
 import { Button, Card, CardTitle, Textarea } from "../ui";
 
-const PLACEHOLDER = `Hombro y Bíceps
-martes, 7 de octubre de 2025, 18:32
-1h 5m | 2 005 kg | 2 Ejercicios | 7 series
-Lever Military Press
-Serie 1: 20 kg x 12 reps (Calentamiento)
-Serie 2: 40 kg x 10 reps
+const PLACEHOLDER = `Day 4: Shoulders, Arms & Abs
+lunes, 5 de octubre de 2026, 18:54
+
+3h 1m | 6 893.5kg | 8 Ejercicios | 21 series
+
+1. Lever Military Press
+Serie 1: 36kg x 9 reps (Calentamiento)
+Serie 2: 50kg x 6 reps
 …`;
 
 type SaveState =

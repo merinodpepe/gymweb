@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseLyfta, parseNumber } from "@/domain/lyfta/parseLyfta";
-import { LYFTA_EXAMPLE } from "./fixtures";
+import { LYFTA_EXAMPLE, LYFTA_REAL } from "./fixtures";
 
 describe("parseNumber", () => {
   it("handles thousands spaces and decimal separators", () => {
@@ -106,5 +106,53 @@ Serie 1: 10 kg x 10 reps`;
   it("flags header count mismatches", () => {
     const { warnings } = parseLyfta(LYFTA_EXAMPLE.replace("7 series", "9 series"));
     expect(warnings.some((w) => w.includes("9 series"))).toBe(true);
+  });
+});
+
+describe("parseLyfta with a real Lyfta export", () => {
+  const { workout, warnings, checks } = parseLyfta(LYFTA_REAL);
+
+  it("reads header, date and duration", () => {
+    expect(workout.routine_name).toBe("Day 4: Shoulders, Arms & Abs");
+    expect(workout.date).toBe("2026-10-05T18:54");
+    expect(workout.duration_min).toBe(181);
+    expect(workout.total_volume_kg).toBe(6893.5);
+  });
+
+  it("strips the exercise numbering and ignores the share footer", () => {
+    expect(workout.exercises.map((e) => e.name)).toEqual([
+      "Lever Military Press",
+      "Cable One Arm Lateral Raise",
+      "Cable Standing Face Pull (with rope)",
+      "Barbell Curl",
+      "Close-Grip Bench Press",
+      "Hammer Curl",
+      "Triceps Pushdown",
+      "Cable Kneeling Crunch",
+    ]);
+    expect(workout.exercises[3].notes).toBe("barra corta, sin contar peso barra");
+    expect(workout.exercises.every((e) => e.notes === null || !e.notes.includes("lyfta.app"))).toBe(true);
+  });
+
+  it("parses sets with no space before kg and decimal weights", () => {
+    expect(workout.exercises[0].sets[0]).toEqual({ weight_kg: 36, reps: 9, is_warmup: true });
+    expect(workout.exercises[1].sets[0]).toEqual({ weight_kg: 11.3, reps: 13, is_warmup: false });
+    expect(workout.exercises[7].sets[1]).toEqual({ weight_kg: 70.3, reps: 12, is_warmup: false });
+  });
+
+  it("matches the header counts", () => {
+    expect(checks.parsed_exercises).toBe(8);
+    expect(checks.parsed_sets).toBe(21);
+  });
+
+  it("reports the unexplained volume difference only as a warning", () => {
+    // Lyfta reports 6893.5 kg; Σ(weight × reps) is 6569.5 (all sets) / 6245.5
+    // (working). The 324 kg gap equals both the warm-up set (36×9) and the
+    // Hammer Curl volume, so one export can't tell which rule Lyfta applies.
+    expect(checks.volume_all_sets).toBe(6569.5);
+    expect(checks.volume_working_sets).toBe(6245.5);
+    expect(checks.volume_rule).toBeNull();
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("diferencia 324 kg");
   });
 });
