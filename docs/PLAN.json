@@ -1,0 +1,21 @@
+{
+  "project": "GymWeb",
+  "date": "2026-10-07",
+  "db": {"choice": "Neon Postgres (free)", "why": "scale-to-zero con auto-wake, sin archivado; Turso archiva a los 10 dias, Supabase pausa a los 7", "backup": "pg_dump mensual + export CSV"},
+  "stack": {"framework": "Next.js App Router + TypeScript", "orm": "Drizzle", "validation": "Zod", "ui": "Tailwind + shadcn/ui + Recharts", "tests": "Vitest", "hosting": "Vercel", "auth": "Auth.js un usuario"},
+  "modules": {
+    "dashboard": ["body_log", "runs"],
+    "nutrition": ["nutrition_log (independiente, sin FK)"],
+    "training": ["workouts", "workout_exercises", "exercise_alias"]
+  },
+  "stats": {
+    "e1rm": "Epley+Brzycki medios, reps<=10, sin calentamiento, mejor serie por sesion",
+    "strength_trend": "EWMA alpha 0.3 + Theil-Sen con IC bootstrap 95%, SWC 1.5x error tipico",
+    "weight_trend": "EWMA alpha 0.1 + media 7d + pendiente OLS 14-28d con IC 95%",
+    "pace": "sum(tiempo)/sum(distancia), cinta y exterior separadas",
+    "volume": "series efectivas por grupo muscular y semana ISO; semana en curso parcial"
+  },
+  "design": {"theme": "dark", "bg": "#0a0a0a", "surface": "#151515", "accent": "#f36100", "fonts": ["Oswald", "Inter"], "templates_reused": true, "note": "uso personal permitido por el usuario: se pueden reutilizar assets/estilos de gymlife; se reimplementa en Tailwind; conservar credito en footer si la app es publica"},
+  "phases": ["setup", "dominio+parser", "entrada de datos", "dashboard", "fuerza", "nutricion", "pulido"],
+  "detail": "Ver PLAN.md"
+}

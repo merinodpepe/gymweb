@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
+// Personal dashboard: every page reads the session cookie and the database at
+// request time, so Cache Components / partial prefetching are not used.
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
+    root: process.cwd(),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
