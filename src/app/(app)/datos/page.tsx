@@ -2,6 +2,7 @@ import { Download } from "lucide-react";
 import { connection } from "next/server";
 import { DbMissing, hasDatabase } from "@/components/db-missing";
 import { AliasForm } from "@/components/forms/alias-form";
+import { FillMusclesButton } from "@/components/forms/fill-muscles-button";
 import { Card, CardTitle, EmptyState, PageHeader } from "@/components/ui";
 import { exerciseAliasRepo } from "@/repositories/exerciseAliasRepo";
 import { workoutRepo } from "@/repositories/workoutRepo";
@@ -43,6 +44,7 @@ export default async function DataPage() {
           importar cuando el volumen lo delata). Se aplica también a los entrenos ya guardados.
         </p>
         <AliasForm names={rawNames} aliases={aliases} />
+        <FillMusclesButton />
         {aliases.length ? (
           <div className="-mx-4 mt-5 relative overflow-x-auto sm:mx-0">
             <table className="w-full text-sm">

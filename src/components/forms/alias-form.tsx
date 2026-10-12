@@ -52,7 +52,7 @@ export function AliasForm({ names, aliases }: { names: string[]; aliases: Alias[
         ))}
       </datalist>
       <datalist id="muscle-groups">
-        {["Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Cuádriceps", "Isquios", "Glúteo", "Gemelo", "Core"].map((g) => (
+        {["Pecho", "Espalda", "Hombro", "Bíceps", "Tríceps", "Cuádriceps", "Isquios", "Glúteo", "Gemelo", "Core", "Antebrazo"].map((g) => (
           <option key={g} value={g} />
         ))}
       </datalist>

@@ -1,6 +1,7 @@
 import "server-only";
 import { parseLyfta } from "@/domain/lyfta/parseLyfta";
 import { exerciseAliasRepo } from "@/repositories/exerciseAliasRepo";
+import { fillMissingMuscleGroups } from "@/services/muscleService";
 import { workoutRepo } from "@/repositories/workoutRepo";
 
 export async function previewWorkout(rawText: string) {
@@ -25,5 +26,6 @@ export async function saveWorkout(rawText: string, replace = false): Promise<Sav
   const id = await workoutRepo.save(workout, canonical, warnings, existing?.id);
   // Remember exercises deduced from Lyfta's volume, and fix their older workouts too.
   await exerciseAliasRepo.markDumbbells(checks.dumbbell_inferred);
+  await fillMissingMuscleGroups(workout.exercises.map((e) => e.name));
   return { status: existing ? "replaced" : "created", id, warnings };
 }

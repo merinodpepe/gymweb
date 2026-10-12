@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { exerciseAlias, workoutExercises } from "@/db/schema";
 import type { Alias } from "@/domain/schemas/workout";
@@ -14,6 +14,8 @@ export interface ExerciseAliasRepo {
   upsert(alias: Alias): Promise<void>;
   /** Marks exercises as dumbbell work (creating the alias if needed) and flags their stored sets. */
   markDumbbells(rawNames: readonly string[]): Promise<void>;
+  /** Sets muscle groups (creating the alias if needed) but never overwrites one that is already set. */
+  fillMuscleGroups(groups: ReadonlyMap<string, string>): Promise<void>;
 }
 
 /** Adds or removes `dumbbell_pair` on every stored set of the exercises with these raw names. */
@@ -77,5 +79,16 @@ export const exerciseAliasRepo: ExerciseAliasRepo = {
         .onConflictDoUpdate({ target: exerciseAlias.rawName, set: { dumbbell: true } }),
       flagStoredSets(rawNames, true),
     ]);
+  },
+  async fillMuscleGroups(groups) {
+    if (!groups.size) return;
+    await getDb()
+      .insert(exerciseAlias)
+      .values([...groups].map(([n, g]) => ({ rawName: n, canonicalName: n, muscleGroup: g })))
+      .onConflictDoUpdate({
+        target: exerciseAlias.rawName,
+        set: { muscleGroup: sql`excluded.muscle_group` },
+        setWhere: isNull(exerciseAlias.muscleGroup),
+      });
   },
 };
