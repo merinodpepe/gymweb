@@ -8,6 +8,20 @@
       "when": 1791363985284,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791798243998,
+      "tag": "0001_scale_and_workout_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791798821777,
+      "tag": "0002_alias_dumbbell",
+      "breakpoints": true
     }
   ]
 }

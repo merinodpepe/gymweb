@@ -26,14 +26,14 @@ type SaveState =
   | { kind: "duplicate" }
   | { kind: "error"; text: string };
 
-export function ImportLyfta() {
+export function ImportLyfta({ dumbbells }: { dumbbells: string[] }) {
   const [text, setText] = useState("");
   const [preview, setPreview] = useState<ParseResult | null>(null);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
 
   // The parser is pure, so the preview runs in the browser (same code as the server).
   const analyze = () => {
-    setPreview(parseLyfta(text));
+    setPreview(parseLyfta(text, { dumbbells: new Set(dumbbells) }));
     setSave({ kind: "idle" });
   };
 
@@ -89,6 +89,13 @@ export function ImportLyfta() {
                 {w.duration_min} min · {fmt(w.total_volume_kg, 1)} kg · {w.exercises.length} ejercicios ·{" "}
                 {preview.checks.parsed_sets} series
               </p>
+              {w.notes && <p className="mt-1 whitespace-pre-line text-sm italic text-muted">{w.notes}</p>}
+              {preview.checks.dumbbell_inferred.length > 0 && (
+                <p className="mt-1 text-sm text-muted">
+                  Con mancuernas (deducido del volumen de Lyfta, se recordará al guardar):{" "}
+                  <span className="text-strong">{preview.checks.dumbbell_inferred.join(", ")}</span>
+                </p>
+              )}
             </div>
             {preview.checks.volume_rule && (
               <span className="inline-flex items-center gap-1 text-xs text-good">

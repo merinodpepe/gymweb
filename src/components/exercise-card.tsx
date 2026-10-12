@@ -1,5 +1,6 @@
 import type { WorkoutSet } from "@/domain/schemas/workout";
 import { setE1rm, isE1rmEligible } from "@/domain/stats/e1rm";
+import { setLoad } from "@/domain/stats/load";
 import { cn } from "@/lib/cn";
 import { fmt, fmtKg } from "@/lib/format";
 
@@ -8,12 +9,14 @@ export function SetRow({ set, index }: { set: WorkoutSet; index: number }) {
     <li className={cn("flex items-center gap-3 py-1.5 text-sm", set.is_warmup && "text-muted")}>
       <span className="w-14 text-xs uppercase tracking-wide text-muted">Serie {index + 1}</span>
       <span className={cn("num", !set.is_warmup && "text-strong")}>
+        {set.bodyweight_kg !== undefined && <span className="text-muted">BW {fmtKg(set.bodyweight_kg)} + </span>}
+        {set.dumbbell_pair && <span className="text-muted">2 × </span>}
         {fmtKg(set.weight_kg)} kg × {set.reps}
       </span>
       {set.is_warmup ? (
         <span className="text-xs italic">calentamiento</span>
       ) : isE1rmEligible(set) ? (
-        <span className="ml-auto text-xs text-muted num">e1RM {fmt(setE1rm(set.weight_kg, set.reps), 1)}</span>
+        <span className="ml-auto text-xs text-muted num">e1RM {fmt(setE1rm(setLoad(set), set.reps), 1)}</span>
       ) : null}
     </li>
   );

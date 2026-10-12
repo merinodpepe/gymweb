@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseLyfta, parseNumber } from "@/domain/lyfta/parseLyfta";
-import { LYFTA_EXAMPLE, LYFTA_REAL } from "./fixtures";
+import { sessionE1rm } from "@/domain/stats/e1rm";
+import { tonnage } from "@/domain/stats/volume";
+import { LYFTA_BACK_BW, LYFTA_CHEST_BW, LYFTA_EXAMPLE, LYFTA_REAL } from "./fixtures";
 
 describe("parseNumber", () => {
   it("handles thousands spaces and decimal separators", () => {
@@ -145,14 +147,113 @@ describe("parseLyfta with a real Lyfta export", () => {
     expect(checks.parsed_sets).toBe(21);
   });
 
-  it("reports the unexplained volume difference only as a warning", () => {
-    // Lyfta reports 6893.5 kg; Σ(weight × reps) is 6569.5 (all sets) / 6245.5
-    // (working). The 324 kg gap equals both the warm-up set (36×9) and the
-    // Hammer Curl volume, so one export can't tell which rule Lyfta applies.
-    expect(checks.volume_all_sets).toBe(6569.5);
-    expect(checks.volume_working_sets).toBe(6245.5);
+  it("deduces that Hammer Curl is the dumbbell exercise Lyfta counts ×2", () => {
+    // Lyfta reports 6893.5 kg; Σ(weight × reps) is 6569.5. The 324 kg gap is exactly
+    // the Hammer Curl volume (18×8 + 18×10): only that subset of exercises fits.
+    expect(checks.dumbbell_inferred).toEqual(["Hammer Curl"]);
+    expect(workout.exercises[5].sets.every((x) => x.dumbbell_pair)).toBe(true);
+    expect(workout.exercises[0].sets.some((x) => x.dumbbell_pair)).toBe(false);
+    expect(checks.volume_all_sets).toBe(6893.5);
+    expect(checks.volume_rule).toBe("all_sets");
+    expect(warnings).toEqual([]);
+  });
+
+  it("uses known dumbbell exercises without needing to deduce them", () => {
+    const known = parseLyfta(LYFTA_REAL, { dumbbells: new Set(["Hammer Curl"]) });
+    expect(known.checks.dumbbell_inferred).toEqual([]);
+    expect(known.checks.volume_rule).toBe("all_sets");
+    expect(known.workout.exercises[5].sets[0]).toEqual({ weight_kg: 18, reps: 8, is_warmup: false, dumbbell_pair: true });
+  });
+});
+
+describe("parseLyfta with bodyweight exercises and comments", () => {
+  const back = parseLyfta(LYFTA_BACK_BW);
+  const chest = parseLyfta(LYFTA_CHEST_BW);
+
+  it("reads the workout comment between the date and the summary", () => {
+    expect(back.workout.notes).toBe("me cago en la puta estaba mar, he entrenado fuerte pero joder");
+    expect(back.workout.duration_min).toBe(66);
+    expect(back.workout.total_volume_kg).toBe(5318.1);
+    expect(back.workout.exercises[0].name).toBe("Cable Wide-Grip Lat Pulldown");
+    expect(chest.workout.notes).toBeNull();
+  });
+
+  it("keeps exercise comments as notes", () => {
+    expect(back.workout.exercises[2].notes).toBe("vamos a parar para evitar lesiones");
+    expect(back.workout.exercises[4].notes).toBe("el primero lo he hecho unilateral");
+    expect(back.workout.exercises[5].notes).toBe("peso sin barra");
+  });
+
+  it("strips «(+ BW x kg)» from the name and stores the bodyweight per set", () => {
+    const pullUp = back.workout.exercises[1];
+    expect(pullUp.name).toBe("Weighted Pull-Up");
+    expect(pullUp.sets[0]).toEqual({ weight_kg: 0, reps: 7, is_warmup: false, bodyweight_kg: 90 });
+    expect(chest.workout.exercises[2].name).toBe("Chest Dip");
+    expect(back.workout.exercises[0].sets[0].bodyweight_kg).toBeUndefined();
+  });
+
+  it("matches Lyfta's volume once bodyweight × reps is added", () => {
+    expect(back.checks.volume_all_sets).toBe(5318.1);
+    expect(back.checks.volume_rule).toBe("all_sets");
+    expect(back.warnings).toEqual([]);
+    expect(chest.checks.volume_all_sets).toBe(3067.1);
+    expect(chest.checks.volume_rule).toBe("all_sets");
+    expect(chest.warnings).toEqual([]);
+  });
+
+  it("uses bodyweight + added load for e1RM and tonnage", () => {
+    const dips = chest.workout.exercises[2].sets;
+    expect(tonnage(dips)).toBe(90 * 13);
+    expect(sessionE1rm(dips)).toBeCloseTo((90 * (1 + 5 / 30) + (90 * 36) / 32) / 2, 6);
+  });
+});
+
+describe("dumbbells and optional comments", () => {
+  const base = (header: string, body: string) => `Rutina
+lunes, 12 de octubre de 2026, 10:00
+${header}
+${body}`;
+
+  it("does not guess when several exercise groups explain the gap", () => {
+    const { checks, warnings } = parseLyfta(
+      base(
+        // 300 − 200 = 100 kg: either A or B could be the dumbbell one.
+        "30m | 300kg | 2 Ejercicios | 2 series",
+        "A\nSerie 1: 10kg x 10 reps\nB\nSerie 1: 10kg x 10 reps",
+      ),
+    );
+    expect(checks.dumbbell_inferred).toEqual([]);
     expect(checks.volume_rule).toBeNull();
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("diferencia 324 kg");
+    expect(warnings.some((w) => w.includes("varios grupos"))).toBe(true);
+  });
+
+  it("recognises dumbbells by name", () => {
+    const { workout, checks } = parseLyfta(
+      base("30m | 400kg | 1 Ejercicios | 1 series", "Dumbbell Bench Press\nSerie 1: 20kg x 10 reps"),
+    );
+    expect(workout.exercises[0].sets[0].dumbbell_pair).toBe(true);
+    expect(checks.dumbbell_inferred).toEqual([]);
+    expect(checks.volume_rule).toBe("all_sets");
+  });
+
+  it("doubles dumbbell volume in tonnage but not in e1RM", () => {
+    const sets = [{ weight_kg: 20, reps: 5, is_warmup: false, dumbbell_pair: true as const }];
+    expect(tonnage(sets)).toBe(200);
+    expect(sessionE1rm(sets)).toBeCloseTo(sessionE1rm([{ weight_kg: 20, reps: 5, is_warmup: false }])!, 9);
+  });
+
+  it("handles a multi-line workout comment, exercises with and without notes, and no comment", () => {
+    const { workout, warnings } = parseLyfta(
+      base(
+        "primera línea\nsegunda línea\n30m | 300kg | 2 Ejercicios | 2 series",
+        "A\nnota de A\nSerie 1: 10kg x 10 reps\nB\nSerie 1: 20kg x 10 reps",
+      ),
+    );
+    expect(workout.notes).toBe("primera línea\nsegunda línea");
+    expect(workout.exercises.map((e) => e.notes)).toEqual(["nota de A", null]);
+    expect(warnings).toEqual([]);
+    const plain = parseLyfta(base("30m | 100kg | 1 Ejercicios | 1 series", "A\nSerie 1: 10kg x 10 reps"));
+    expect(plain.workout.notes).toBeNull();
+    expect(plain.workout.exercises[0].notes).toBeNull();
   });
 });

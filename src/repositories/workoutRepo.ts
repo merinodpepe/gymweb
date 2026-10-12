@@ -53,6 +53,7 @@ async function hydrate(rows: (typeof workouts.$inferSelect)[]): Promise<StoredWo
     routine_name: r.routineName,
     duration_min: r.durationMin,
     total_volume_kg: Number(r.totalVolumeKg),
+    notes: r.notes,
     raw_text: r.rawText,
     parse_warnings: r.parseWarnings,
     exercises: ex
@@ -105,6 +106,7 @@ export const workoutRepo: WorkoutRepo = {
       routineName: w.routine_name,
       durationMin: w.duration_min,
       totalVolumeKg: String(w.total_volume_kg),
+      notes: w.notes,
       rawText: w.raw_text,
       parseWarnings: warnings,
     });

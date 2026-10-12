@@ -1,5 +1,6 @@
 import type { WorkoutSet } from "../schemas/workout";
 import { sessionE1rm } from "./e1rm";
+import { setLoad } from "./load";
 
 export const REP_TARGETS = [1, 3, 5, 8, 10] as const;
 
@@ -14,13 +15,12 @@ export interface PrRecord {
   date: string;
 }
 
-/** Heaviest working-set weight lifted for at least `reps` reps in a session. */
+/** Heaviest working-set load (bodyweight included) lifted for at least `reps` reps in a session. */
 function bestForReps(sets: readonly WorkoutSet[], reps: number): number | null {
   let best: number | null = null;
   for (const s of sets) {
-    if (!s.is_warmup && s.reps >= reps && s.weight_kg > 0 && (best === null || s.weight_kg > best)) {
-      best = s.weight_kg;
-    }
+    const load = setLoad(s);
+    if (!s.is_warmup && s.reps >= reps && load > 0 && (best === null || load > best)) best = load;
   }
   return best;
 }

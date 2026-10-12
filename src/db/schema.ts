@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   index,
@@ -18,6 +19,8 @@ export const bodyLog = pgTable("body_log", {
   date: date("date", { mode: "string" }).primaryKey(),
   weightKg: numeric("weight_kg", { precision: 5, scale: 2 }),
   steps: integer("steps"),
+  /** Free-text scale name, so the bias between scales can be estimated. */
+  scale: text("scale"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -58,6 +61,7 @@ export const workouts = pgTable(
     routineName: text("routine_name").notNull(),
     durationMin: integer("duration_min").notNull(),
     totalVolumeKg: numeric("total_volume_kg", { precision: 8, scale: 1 }).notNull(),
+    notes: text("notes"),
     rawText: text("raw_text").notNull(),
     parseWarnings: jsonb("parse_warnings").$type<string[]>().notNull().default([]),
   },
@@ -84,4 +88,6 @@ export const exerciseAlias = pgTable("exercise_alias", {
   rawName: text("raw_name").primaryKey(),
   canonicalName: text("canonical_name").notNull(),
   muscleGroup: text("muscle_group"),
+  /** Dumbbell exercise: Lyfta counts its volume ×2. */
+  dumbbell: boolean("dumbbell").notNull().default(false),
 });

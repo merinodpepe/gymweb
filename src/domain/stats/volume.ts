@@ -1,9 +1,10 @@
 import type { WorkoutSet } from "../schemas/workout";
+import { setVolume } from "./load";
 import { dayNumber, isoWeekStart } from "./weeks";
 
-/** Tonnage of working sets only (Σ weight × reps). */
+/** Tonnage of working sets only (Σ load × reps, bodyweight included, both dumbbells). */
 export const tonnage = (sets: readonly WorkoutSet[]) =>
-  sets.filter((s) => !s.is_warmup).reduce((t, s) => t + s.weight_kg * s.reps, 0);
+  sets.filter((s) => !s.is_warmup).reduce((t, s) => t + setVolume(s), 0);
 
 export interface ExerciseSession {
   date: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm

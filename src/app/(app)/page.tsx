@@ -39,7 +39,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           label="Peso actual"
           value={fmt(weight.current?.value, 1)}
           unit="kg"
-          detail={weight.current ? fmtDate(weight.current.date, { year: false }) : "Sin pesaje hoy ni ayer"}
+          detail={
+            weight.current
+              ? `${fmtDate(weight.current.date, { year: false })}${weight.currentScale ? ` · ${weight.currentScale}, corregido` : ""}`
+              : "Sin pesaje hoy ni ayer"
+          }
         />
         <KpiCard
           label="Tendencia 28 d"
@@ -75,7 +79,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardTitle>Peso corporal</CardTitle>
-          <p className="mb-3 text-xs text-muted">Pesajes en puntos, tendencia EWMA (α 0,1) y media móvil de 7 días.</p>
+          <p className="mb-3 text-xs text-muted">
+            Pesajes tal cual en puntos; tendencia EWMA (α 0,1) y media móvil de 7 días corregidas a la media de tus básculas.
+          </p>
           {weight.raw.length ? (
             <TimeChart
               ariaLabel="Gráfica de peso corporal"
@@ -115,8 +121,40 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
       <Card className="mt-6">
         <CardTitle>Registrar peso y pasos</CardTitle>
         <p className="mb-4 text-xs text-muted">Si ya hay datos ese día, solo se sobrescriben los campos que rellenes.</p>
-        <BodyForm today={d.today} />
+        <BodyForm today={d.today} scales={d.scaleNames} />
       </Card>
+
+      {weight.scales.length > 0 && (
+        <Card className="mt-6">
+          <CardTitle>Básculas</CardTitle>
+          <p className="mb-3 text-xs text-muted">
+            Cuánto marca cada báscula respecto a la media de todas, comparando pesajes de días cercanos (≤ 3 días) y
+            descontando lo que cambia tu peso entre ellos. Últimos 180 días.
+          </p>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {weight.scales.map((s) => (
+              <li key={s.scale} className="rounded-md border border-border p-3">
+                <p className="font-display text-strong">{s.scale}</p>
+                {s.offset === null ? (
+                  <p className="text-sm text-muted">
+                    Sin calibrar: pésate en otra báscula en los días cercanos ({s.weighIns} pesajes).
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-strong num">
+                      {fmtSigned(s.offset, 2)} kg{s.ci95 !== null && <span className="text-muted"> ± {fmt(s.ci95, 2)}</span>}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {Math.abs(s.offset) < 0.05 ? "Marca como la media" : s.offset > 0 ? "Marca de más" : "Marca de menos"} ·{" "}
+                      {s.pairs} pares · confianza {s.confidence}
+                    </p>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card className="mt-6">
         <CardTitle>Pasos</CardTitle>

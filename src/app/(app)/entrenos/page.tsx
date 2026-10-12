@@ -146,6 +146,7 @@ export default async function WorkoutsPage() {
                   <span aria-hidden className="text-muted transition-transform group-open:rotate-90">›</span>
                 </summary>
                 <div className="border-t border-border p-4">
+                  {w.notes && <p className="mb-3 whitespace-pre-line text-sm italic text-muted">{w.notes}</p>}
                   <div className="grid gap-3 md:grid-cols-2">
                     {w.exercises.map((e) => (
                       <ExerciseCard key={e.position} name={e.name} canonical={e.canonical_name} notes={e.notes} sets={e.sets} />

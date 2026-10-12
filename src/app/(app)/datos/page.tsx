@@ -39,9 +39,10 @@ export default async function DataPage() {
         <CardTitle>Alias de ejercicios</CardTitle>
         <p className="mb-4 text-xs text-muted">
           Unifica nombres entre rutinas (p. ej. «Lever Military Press» y «Machine Shoulder Press» → «Press hombro») y asigna
-          el grupo muscular para el volumen semanal. Se aplica también a los entrenos ya guardados.
+          el grupo muscular para el volumen semanal. Marca «Mancuernas» si Lyfta cuenta el ejercicio ×2 (se deduce solo al
+          importar cuando el volumen lo delata). Se aplica también a los entrenos ya guardados.
         </p>
-        <AliasForm names={rawNames} />
+        <AliasForm names={rawNames} aliases={aliases} />
         {aliases.length ? (
           <div className="-mx-4 mt-5 relative overflow-x-auto sm:mx-0">
             <table className="w-full text-sm">
@@ -50,6 +51,7 @@ export default async function DataPage() {
                   <th className="px-4 py-2 font-medium sm:px-2">Nombre en Lyfta</th>
                   <th className="px-2 py-2 font-medium">Canónico</th>
                   <th className="px-2 py-2 font-medium">Grupo</th>
+                  <th className="px-2 py-2 font-medium">Mancuernas</th>
                 </tr>
               </thead>
               <tbody>
@@ -58,6 +60,7 @@ export default async function DataPage() {
                     <td className="px-4 py-2 sm:px-2">{a.raw_name}</td>
                     <td className="px-2 py-2 text-strong">{a.canonical_name}</td>
                     <td className="px-2 py-2">{a.muscle_group ?? "—"}</td>
+                    <td className="px-2 py-2">{a.dumbbell ? "Sí (×2)" : "—"}</td>
                   </tr>
                 ))}
               </tbody>

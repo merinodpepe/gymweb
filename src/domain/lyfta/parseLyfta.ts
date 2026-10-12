@@ -1,4 +1,5 @@
 import type { Exercise, Workout, WorkoutSet } from "../schemas/workout";
+import { setVolume } from "../stats/load";
 import { monthIndex } from "./months.es";
 
 export type VolumeRule = "all_sets" | "working_sets" | null;
@@ -12,6 +13,13 @@ export interface LyftaChecks {
   volume_working_sets: number;
   /** Which summation reproduces Lyfta's reported volume (null = neither). */
   volume_rule: VolumeRule;
+  /** Exercises deduced to be dumbbell work because only they explain Lyfta's volume. */
+  dumbbell_inferred: string[];
+}
+
+export interface ParseOptions {
+  /** Exercise names (as in Lyfta) already known to be done with dumbbells. */
+  dumbbells?: ReadonlySet<string>;
 }
 
 export interface ParseResult {
@@ -30,6 +38,20 @@ const SET_RE =
 const FOOTER_RE = /^(https?:\/\/\S+|.*únete a mí en Lyfta\.?)$/iu;
 /** Exercise names are numbered in the export: "1. Lever Military Press". */
 const stripNumber = (name: string) => name.replace(/^\d+\.\s+/, "");
+/** Bodyweight exercises carry Lyfta's profile weight: "Weighted Pull-Up(+ BW 90 kg)". */
+const BODYWEIGHT_RE = /\s*\(\s*\+\s*BW\s*([\d.,]+)\s*kg\s*\)\s*$/i;
+
+/** "1. Chest Dip(+ BW 90 kg)" → { name: "Chest Dip", bodyweight: 90 }. */
+function parseExerciseName(raw: string): { name: string; bodyweight: number | undefined } {
+  const name = stripNumber(raw);
+  const bw = BODYWEIGHT_RE.exec(name);
+  if (!bw) return { name, bodyweight: undefined };
+  return { name: name.slice(0, bw.index).trim(), bodyweight: parseNumber(bw[1]) };
+}
+
+/** Names that say it themselves; anything else is learned from Lyfta's volume. */
+const DUMBBELL_NAME_RE = /dumbbell|mancuerna|\bDB\b/i;
+const MAX_INFERRED = 3;
 
 /** "6 893.5" → 6893.5, "1.234,5" → 1234.5, "72,5" → 72.5. */
 export function parseNumber(raw: string): number {
@@ -52,11 +74,44 @@ function volumeMatches(computed: number, reported: number): boolean {
   return Math.abs(computed - reported) <= Math.max(1, reported * 0.005);
 }
 
+const sumVolume = (sets: readonly WorkoutSet[]) => round1(sets.reduce((t, x) => t + setVolume(x), 0));
+
+/**
+ * Lyfta counts dumbbells twice, but its export doesn't say which exercises use them.
+ * Finds the subsets of (up to 3) exercises whose volume equals the unexplained gap,
+ * under either volume rule. Returns the exercise indexes only if exactly one subset fits.
+ */
+function inferDumbbells(exercises: readonly Exercise[], reported: number): number[] | "ambiguous" | null {
+  const candidates = exercises
+    .map((e, i) => ({ i, all: sumVolume(e.sets), working: sumVolume(e.sets.filter((x) => !x.is_warmup)) }))
+    .filter((c) => c.all > 0 && !exercises[c.i].sets[0]?.dumbbell_pair);
+  const allSets = exercises.flatMap((e) => e.sets);
+  const gaps = {
+    all: round1(reported - sumVolume(allSets)),
+    working: round1(reported - sumVolume(allSets.filter((x) => !x.is_warmup))),
+  };
+  const matches = new Set<string>();
+  const walk = (start: number, picked: typeof candidates) => {
+    if (picked.length) {
+      for (const rule of ["all", "working"] as const) {
+        const v = round1(picked.reduce((t, c) => t + c[rule], 0));
+        if (gaps[rule] > 0 && Math.abs(v - gaps[rule]) < 0.05) matches.add(picked.map((c) => c.i).join(","));
+      }
+    }
+    if (picked.length === MAX_INFERRED) return;
+    for (let k = start; k < candidates.length; k++) walk(k + 1, [...picked, candidates[k]]);
+  };
+  walk(0, []);
+  if (matches.size === 0) return null;
+  if (matches.size > 1) return "ambiguous";
+  return [...matches][0].split(",").map(Number);
+}
+
 /**
  * Parses a workout exported from Lyfta as plain text (Spanish locale).
  * Never throws: problems are reported as warnings and `raw_text` is always kept.
  */
-export function parseLyfta(text: string): ParseResult {
+export function parseLyfta(text: string, { dumbbells = new Set() }: ParseOptions = {}): ParseResult {
   const warnings: string[] = [];
   const lines = text
     .replace(/\r\n?/g, "\n")
@@ -69,6 +124,7 @@ export function parseLyfta(text: string): ParseResult {
     routine_name: "",
     duration_min: 0,
     total_volume_kg: 0,
+    notes: null,
     raw_text: text,
     exercises: [],
   };
@@ -96,11 +152,16 @@ export function parseLyfta(text: string): ParseResult {
     warnings.push("No se encontró la fecha (formato esperado: «martes, 7 de octubre de 2025, 18:30»).");
   }
 
-  // 3. Summary header
+  // 3. Optional workout comment, then the summary header. The comment is every line
+  //    before the header, as long as no set line comes first.
   let headerExercises: number | null = null;
   let headerSets: number | null = null;
-  const hm = lines[i] !== undefined ? HEADER_RE.exec(lines[i]) : null;
+  let headerAt = i;
+  while (headerAt < lines.length && !HEADER_RE.test(lines[headerAt]) && !SET_RE.test(lines[headerAt])) headerAt++;
+  const hm = lines[headerAt] !== undefined ? HEADER_RE.exec(lines[headerAt]) : null;
   if (hm) {
+    if (headerAt > i) workout.notes = lines.slice(i, headerAt).join("\n");
+    i = headerAt;
     const [, hours, minutes, volume, nEx, nSets] = hm;
     workout.duration_min = Number(hours ?? 0) * 60 + Number(minutes ?? 0);
     workout.total_volume_kg = parseNumber(volume);
@@ -113,12 +174,14 @@ export function parseLyfta(text: string): ParseResult {
 
   // 4. Exercises: state machine over the remaining lines
   let current: Exercise | null = null;
+  let currentBodyweight: number | undefined;
+  let currentDumbbell = false;
   let pending: string[] = [];
 
   const flushPendingWithoutSets = () => {
     if (pending.length === 0) return;
     const [rawName, ...notes] = pending;
-    const name = stripNumber(rawName);
+    const { name } = parseExerciseName(rawName);
     workout.exercises.push({ name, notes: notes.length ? notes.join("\n") : null, sets: [] });
     warnings.push(`El ejercicio «${name}» no tiene series.`);
     pending = [];
@@ -132,17 +195,22 @@ export function parseLyfta(text: string): ParseResult {
       pending.push(line);
       continue;
     }
+    if (pending.length > 0) {
+      const [rawName, ...notes] = pending;
+      const { name, bodyweight } = parseExerciseName(rawName);
+      current = { name, notes: notes.length ? notes.join("\n") : null, sets: [] };
+      currentBodyweight = bodyweight;
+      currentDumbbell = dumbbells.has(name) || DUMBBELL_NAME_RE.test(name);
+      workout.exercises.push(current);
+      pending = [];
+    }
     const set: WorkoutSet = {
       weight_kg: parseNumber(sm[2]),
       reps: Number(sm[3]),
       is_warmup: Boolean(sm[4]),
+      ...(currentBodyweight !== undefined && { bodyweight_kg: currentBodyweight }),
+      ...(currentDumbbell && { dumbbell_pair: true as const }),
     };
-    if (pending.length > 0) {
-      const [name, ...notes] = pending;
-      current = { name: stripNumber(name), notes: notes.length ? notes.join("\n") : null, sets: [] };
-      workout.exercises.push(current);
-      pending = [];
-    }
     if (current) {
       current.sets.push(set);
     } else {
@@ -151,12 +219,30 @@ export function parseLyfta(text: string): ParseResult {
   }
   flushPendingWithoutSets();
 
-  // 5. Checksums
+  // 5. Checksums. If Lyfta's volume is off, try to explain it with dumbbell exercises.
   const allSets = workout.exercises.flatMap((e) => e.sets);
-  const volumeAll = round1(allSets.reduce((s, x) => s + x.weight_kg * x.reps, 0));
-  const volumeWorking = round1(
-    allSets.filter((x) => !x.is_warmup).reduce((s, x) => s + x.weight_kg * x.reps, 0),
-  );
+  const reported = workout.total_volume_kg;
+  const explained = () =>
+    volumeMatches(sumVolume(allSets), reported) ||
+    volumeMatches(sumVolume(allSets.filter((x) => !x.is_warmup)), reported);
+  const dumbbellInferred: string[] = [];
+  if (hm && !explained()) {
+    const found = inferDumbbells(workout.exercises, reported);
+    if (found === "ambiguous") {
+      warnings.push(
+        "La diferencia de volumen con Lyfta encaja con varios grupos de ejercicios: no se puede saber cuáles son con mancuernas. Márcalos en Datos → Alias.",
+      );
+    } else if (found) {
+      for (const i of found) {
+        const e = workout.exercises[i];
+        e.sets = e.sets.map((x) => ({ ...x, dumbbell_pair: true as const }));
+        dumbbellInferred.push(e.name);
+      }
+      allSets.splice(0, allSets.length, ...workout.exercises.flatMap((e) => e.sets));
+    }
+  }
+  const volumeAll = sumVolume(allSets);
+  const volumeWorking = sumVolume(allSets.filter((x) => !x.is_warmup));
 
   if (headerExercises !== null && headerExercises !== workout.exercises.length) {
     warnings.push(
@@ -188,6 +274,7 @@ export function parseLyfta(text: string): ParseResult {
       volume_all_sets: volumeAll,
       volume_working_sets: volumeWorking,
       volume_rule: volumeRule,
+      dumbbell_inferred: dumbbellInferred,
     },
   };
 }

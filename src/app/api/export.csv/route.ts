@@ -36,6 +36,8 @@ async function rowsFor(table: z.infer<typeof Table>): Promise<Record<string, unk
             canonical_name: e.canonical_name,
             set: i + 1,
             weight_kg: s.weight_kg,
+            bodyweight_kg: s.bodyweight_kg ?? null,
+            dumbbell_pair: s.dumbbell_pair ?? false,
             reps: s.reps,
             is_warmup: s.is_warmup,
           })),

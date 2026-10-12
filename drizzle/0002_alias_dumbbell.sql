@@ -1,0 +1,1 @@
+ALTER TABLE "exercise_alias" ADD COLUMN "dumbbell" boolean DEFAULT false NOT NULL;
