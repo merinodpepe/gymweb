@@ -1,4 +1,5 @@
 import { hasDatabase } from "@/components/db-missing";
+import { SyncLyftaButton } from "@/components/forms/sync-lyfta-button";
 import { ImportLyfta } from "@/components/forms/import-lyfta";
 import { PageHeader } from "@/components/ui";
 import { exerciseAliasRepo } from "@/repositories/exerciseAliasRepo";
@@ -11,6 +12,7 @@ export default async function ImportPage() {
   return (
     <>
       <PageHeader title="Importar Lyfta" subtitle="Pega el entreno, revisa la vista previa y los avisos, y guarda." />
+      <SyncLyftaButton />
       <ImportLyfta dumbbells={dumbbells} />
     </>
   );

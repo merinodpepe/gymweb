@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Dumbbell } from "lucide-react";
+import { AutoSync } from "@/components/auto-sync";
 import { NavBottom, NavSidebar } from "@/components/nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -40,6 +41,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </footer>
       </div>
       <NavBottom />
+      <AutoSync />
     </>
   );
 }
