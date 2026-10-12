@@ -11,7 +11,7 @@ const ITEMS = [
   { href: "/entrenos", label: "Entrenos", icon: Dumbbell },
   { href: "/coach", label: "Coach", icon: ClipboardList },
   { href: "/carrera", label: "Carrera", icon: Footprints },
-  { href: "/nutricion", label: "Nutrición", icon: Salad },
+  { href: "/nutricion", label: "Nutrición", short: "Dieta", icon: Salad },
   { href: "/importar", label: "Importar", icon: FileUp },
   { href: "/datos", label: "Datos", icon: Database },
 ];
@@ -69,7 +69,7 @@ export function NavBottom() {
           href={href}
           aria-current={isActive(path, href) ? "page" : undefined}
           className={cn(
-            "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[10px] uppercase tracking-wide text-muted",
+            "flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 text-[9px] uppercase tracking-normal text-muted",
             isActive(path, href) && "text-accent",
           )}
         >

@@ -6,7 +6,7 @@ const sets = (n: number, warm = 0) => [
   ...Array.from({ length: warm }, () => ({ weight_kg: 20, reps: 10, is_warmup: true })),
   ...Array.from({ length: n }, () => ({ weight_kg: 50, reps: 8, is_warmup: false })),
 ];
-// Today = Wed 2026-10-14 → current week starts Mon 2026-10-12; the previous four start 10-05, 09-28, 09-21, 09-14.
+// Today = Wed 2026-10-14 → current week starts Mon 2026-10-12; the previous three start 10-05, 09-28, 09-21.
 const TODAY = "2026-10-14";
 const s = (date: string, group: string | null, n: number, secondary: string[] = [], warm = 0): CoachSession => ({
   date,
@@ -31,16 +31,15 @@ describe("classify", () => {
 });
 
 describe("weeklyCoach", () => {
-  it("counts working sets only and gives 5 weeks, oldest first", () => {
+  it("counts working sets only and gives the current week plus 3 previous, oldest first", () => {
     const r = weeklyCoach([s("2026-10-13T10:00", "Pecho", 4, [], 2)], TODAY);
-    expect(r.week_starts).toEqual(["2026-09-14", "2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"]);
+    expect(r.week_starts).toEqual(["2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12"]);
     const pecho = r.groups.find((g) => g.group === "Pecho")!;
     expect(pecho.current).toMatchObject({ direct: 4, total: 4, partial: true });
   });
 
   it("averages only the complete weeks (the partial one is excluded)", () => {
     const items = [
-      s("2026-09-15", "Espalda", 12),
       s("2026-09-22", "Espalda", 12),
       s("2026-09-29", "Espalda", 12),
       s("2026-10-06", "Espalda", 12),
@@ -50,6 +49,7 @@ describe("weeklyCoach", () => {
     expect(g.average).toBe(12);
     expect(g.status).toBe("objetivo");
     expect(g.current.total).toBe(30);
+    expect(g.current_deficit).toBe(0);
   });
 
   it("credits indirect work at half a set and keeps direct apart", () => {
@@ -65,15 +65,20 @@ describe("weeklyCoach", () => {
     expect(r.groups.find((g) => g.group === "Gemelo")!.advice).toMatch(/No has entrenado/);
   });
 
-  it("ignores workouts older than 5 weeks and counts sets without a group apart", () => {
+  it("ignores workouts older than the window and counts sets without a group apart", () => {
     const r = weeklyCoach([s("2026-08-01", "Pecho", 20), s("2026-10-06", null, 5)], TODAY);
     expect(r.groups.find((g) => g.group === "Pecho")!.average).toBe(0);
     expect(r.unassigned_sets).toBe(5);
     expect(r.has_data).toBe(true);
   });
 
+  it("reports what is still missing this week", () => {
+    const g = group([s("2026-10-13", "Pecho", 4)], "Pecho");
+    expect(g.current_deficit).toBe(6);
+  });
+
   it("flags a single weekly session as low frequency", () => {
-    const items = [14, 21, 28].map((d) => s(`2026-09-${d}`, "Pecho", 12)).concat(s("2026-10-05", "Pecho", 12));
+    const items = [22, 29].map((d) => s(`2026-09-${d}`, "Pecho", 12)).concat(s("2026-10-06", "Pecho", 12));
     const g = group(items, "Pecho");
     expect(g.frequency).toBe(1);
     expect(g.advice).toMatch(/2 sesiones/);

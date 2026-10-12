@@ -6,7 +6,7 @@ import { classify, rangeFor, type SetRange, type VolumeStatus } from "./volumeTa
 /** Fraction of a set credited to a muscle that is only a secondary mover. */
 export const INDIRECT_WEIGHT = 0.5;
 /** Current (partial) week plus this many complete weeks before it. */
-export const PREVIOUS_WEEKS = 4;
+export const PREVIOUS_WEEKS = 3;
 
 export interface CoachSession {
   /** `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`. */
@@ -30,6 +30,8 @@ export interface GroupReport {
   /** Oldest → current week. */
   weeks: GroupWeek[];
   current: GroupWeek;
+  /** Sets still missing this week to reach the bottom of the range. */
+  current_deficit: number;
   /** Mean total sets over the complete weeks (the number the status is based on). */
   average: number;
   /** Mean number of sessions per week with direct work for this group. */
@@ -122,6 +124,7 @@ export function weeklyCoach(items: readonly CoachSession[], today: string): Coac
       range,
       weeks,
       current: weeks[weeks.length - 1],
+      current_deficit: round1(Math.max(0, range.min - weeks[weeks.length - 1].total)),
       average,
       frequency,
       status,

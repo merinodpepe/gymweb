@@ -23,7 +23,7 @@ export async function getCoachReport() {
   };
 
   const today = todayIso();
-  const since = addDays(today, -7 * 6);
+  const since = addDays(today, -7 * 5);
   const items: CoachSession[] = history
     .filter((r) => r.date.slice(0, 10) >= since)
     .map((r) => ({
