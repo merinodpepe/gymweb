@@ -15,7 +15,7 @@ describe("matchMuscle", () => {
     ["Cable Standing Fly", "Pecho"],
     ["Chest Dip", "Pecho"],
   ])("exact: %s → %s", (n, g) => {
-    expect(group(n)).toEqual({ group: g, match: "exact" });
+    expect(group(n)).toMatchObject({ group: g, match: "exact" });
   });
 
   it.each([
@@ -40,7 +40,14 @@ describe("matchMuscle", () => {
     }
   });
 
+  it("lists secondary groups, never the main one", () => {
+    const press = group("Lever Military Press");
+    expect(press.secondary).toContain("Tríceps");
+    expect(press.secondary).not.toContain("Hombro");
+    expect(group("Barbell Curl").secondary).toEqual(["Antebrazo"]);
+  });
+
   it("returns none for unknown names", () => {
-    expect(group("Foo Bar Zzz")).toEqual({ group: null, match: "none" });
+    expect(group("Foo Bar Zzz")).toEqual({ group: null, secondary: [], match: "none" });
   });
 });
