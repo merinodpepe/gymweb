@@ -24,6 +24,15 @@ export const bodyLog = pgTable("body_log", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Single-user: at most one row. The refresh token is stored encrypted (see lib/secret-box.ts). */
+export const googleAuth = pgTable("google_auth", {
+  id: integer("id").primaryKey().default(1),
+  refreshTokenSealed: text("refresh_token_sealed").notNull(),
+  scope: text("scope").notNull(),
+  connectedAt: timestamp("connected_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+}, (t) => [check("google_auth_single", sql`${t.id} = 1`)]);
+
 export const runs = pgTable(
   "runs",
   {

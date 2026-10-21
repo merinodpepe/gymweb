@@ -78,6 +78,19 @@ For a quick manual copy at any time: **Datos → Exportar CSV**.
 
 ---
 
+## Step 6: Connect Google Health (steps and weight, optional)
+
+1. Google Cloud → enable the **Google Health API** and create an OAuth client of type **Web application**.
+   Authorized redirect URI: `https://<your-domain>/api/google/callback`.
+2. *Data Access*: add `googlehealth.activity_and_fitness.readonly` and
+   `googlehealth.health_metrics_and_measurements.readonly`. *Audience*: add your account as a test user.
+3. In Vercel add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (never commit `credentials.json`) and redeploy.
+4. In **Importar** press *Conectar Google Health*, accept, then *Sincronizar Google Health*.
+
+A sync never overwrites a weigh-in already stored for that day, and steps only go up. The daily cron and the
+on-open sync also run it. While the app is in *Testing* status Google expires the token after 7 days:
+publish it ("In production") to avoid reconnecting.
+
 ## Good to know
 
 - **Changing the password:** edit `APP_PASSWORD` in Vercel → redeploy. Changing `SESSION_SECRET` logs out every device.
