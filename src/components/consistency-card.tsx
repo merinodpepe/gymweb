@@ -1,0 +1,52 @@
+import type { Consistency } from "@/domain/stats/consistency";
+import { fmt, fmtShortDate } from "@/lib/format";
+import { KpiCard } from "./kpi-card";
+
+const DAYS = ["L", "M", "X", "J", "V", "S", "D"];
+
+export function ConsistencyKpis({ c }: { c: Consistency }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <KpiCard
+        label="Racha"
+        value={String(c.current_streak)}
+        unit={c.current_streak === 1 ? "semana" : "semanas"}
+        detail={`Récord: ${c.longest_streak} · semanas seguidas con entreno`}
+      />
+      <KpiCard label="Esta semana" value={String(c.workouts_this_week)} unit={c.workouts_this_week === 1 ? "entreno" : "entrenos"} />
+      <KpiCard label="Media semanal" value={fmt(c.avg_per_week, 1)} unit="días/sem" detail={`${c.total_workouts} días de entreno en total`} />
+      <KpiCard label="Constancia" value={String(c.score)} unit="%" detail="Semanas con al menos un entreno" />
+    </div>
+  );
+}
+
+/** GitHub-style grid: one column per week (Monday first), one square per day. */
+export function WorkoutHeatmap({ weeks }: { weeks: Consistency["heatmap"] }) {
+  const trained = weeks.reduce((n, w) => n + w.days.filter(Boolean).length, 0);
+  return (
+    <div
+      className="flex gap-1 overflow-x-auto pb-1"
+      role="img"
+      aria-label={`${trained} días de entreno en las últimas ${weeks.length} semanas`}
+    >
+      <div aria-hidden className="grid grid-rows-7 gap-1 pr-1 text-[10px] leading-none text-muted">
+        {DAYS.map((d) => (
+          <span key={d} className="flex size-3.5 items-center">
+            {d}
+          </span>
+        ))}
+      </div>
+      {weeks.map((w) => (
+        <div key={w.week_start} className="grid grid-rows-7 gap-1">
+          {w.days.map((on, i) => (
+            <span
+              key={i}
+              title={on ? `Entreno · semana del ${fmtShortDate(w.week_start)}` : undefined}
+              className={on ? "size-3.5 rounded-sm bg-accent" : "size-3.5 rounded-sm bg-surface-2"}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}

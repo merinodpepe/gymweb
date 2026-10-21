@@ -1,15 +1,25 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { DbMissing, hasDatabase } from "@/components/db-missing";
+import { ConsistencyKpis, WorkoutHeatmap } from "@/components/consistency-card";
 import { ExerciseCard } from "@/components/exercise-card";
 import { DeleteButton } from "@/components/forms/delete-button";
 import { TrendBadge } from "@/components/trend-badge";
 import { Badge, Card, CardTitle, EmptyState, PageHeader } from "@/components/ui";
+import type { ExerciseStatus } from "@/domain/stats/plateau";
 import { fmt, fmtDate, fmtShortDate, fmtSigned } from "@/lib/format";
 import { workoutRepo } from "@/repositories/workoutRepo";
 import { getExerciseOverview } from "@/services/progressService";
 
 export const metadata = { title: "Entrenos" };
+
+const STATUS: Record<ExerciseStatus, { text: string; tone: string }> = {
+  mejorando: { text: "Progresando", tone: "text-good" },
+  estancado: { text: "Estancado", tone: "text-accent" },
+  bajando: { text: "Bajando", tone: "text-bad" },
+  pocos_datos: { text: "Pocos datos", tone: "text-muted" },
+};
+const PR_LABEL = (kind: string) => (kind === "e1rm" ? "e1RM" : kind);
 
 export default async function WorkoutsPage() {
   await connection();
@@ -23,6 +33,7 @@ export default async function WorkoutsPage() {
 
   const [overview, recent] = await Promise.all([getExerciseOverview(), workoutRepo.list({}, 20)]);
   const weeks = overview.weekly.slice(-8);
+  const stalled = overview.exercises.filter((e) => e.plateau.status === "estancado");
   const groups = [...new Set(weeks.flatMap((w) => Object.keys(w.sets_by_group)))].sort();
 
   return (
@@ -36,14 +47,75 @@ export default async function WorkoutsPage() {
         </Link>
       </PageHeader>
 
-      <Card>
+      <ConsistencyKpis c={overview.consistency} />
+
+      <Card className="mt-6">
+        <CardTitle>Constancia</CardTitle>
+        <p className="mb-3 text-xs text-muted">Días con entreno en las últimas 26 semanas (columnas = semanas, de lunes a domingo).</p>
+        <WorkoutHeatmap weeks={overview.consistency.heatmap} />
+      </Card>
+
+      {(overview.recentPrs.length > 0 || stalled.length > 0) && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardTitle>Récords recientes</CardTitle>
+            <p className="mb-3 text-xs text-muted">Marcas superadas en los últimos 30 días (e1RM y mejor peso para 1, 3, 5, 8 y 10 reps).</p>
+            {overview.recentPrs.length ? (
+              <ul className="divide-y divide-border/60 text-sm">
+                {overview.recentPrs.slice(0, 8).map((p) => (
+                  <li key={`${p.exercise}-${p.kind}-${p.date}`} className="flex items-baseline justify-between gap-3 py-2">
+                    <span>
+                      <Link href={`/entrenos/${encodeURIComponent(p.exercise)}`} className="font-medium text-strong hover:text-accent hover:underline">
+                        {p.exercise}
+                      </Link>
+                      <span className="ml-2 text-xs text-muted">{PR_LABEL(p.kind)}</span>
+                    </span>
+                    <span className="shrink-0 num">
+                      <span className="text-strong">{fmt(p.value, 1)} kg</span>
+                      <span className="ml-2 text-xs text-muted">{fmtShortDate(p.date)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState>Ningún récord nuevo en 30 días.</EmptyState>
+            )}
+          </Card>
+
+          <Card>
+            <CardTitle>Estancados</CardTitle>
+            <p className="mb-3 text-xs text-muted">
+              Sin superar su mejor e1RM (+1 %) en 4 o más sesiones y 3 semanas, y sin tendencia al alza. Prueba a añadir una
+              repetición, subir el peso, descargar una semana o cambiar el esquema de repeticiones.
+            </p>
+            {stalled.length ? (
+              <ul className="divide-y divide-border/60 text-sm">
+                {stalled.map((e) => (
+                  <li key={e.name} className="flex items-baseline justify-between gap-3 py-2">
+                    <Link href={`/entrenos/${encodeURIComponent(e.name)}`} className="font-medium text-strong hover:text-accent hover:underline">
+                      {e.name}
+                    </Link>
+                    <span className="shrink-0 text-xs text-muted num">
+                      {e.plateau.sessions_since_gain} sesiones · {e.plateau.days_since_gain} días
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState>Ningún ejercicio estancado.</EmptyState>
+            )}
+          </Card>
+        </div>
+      )}
+
+      <Card className="mt-6">
         <CardTitle>Ejercicios</CardTitle>
         <p className="mb-3 text-xs text-muted">
           Pendiente en kg de e1RM por semana (últimas 12 semanas, ≥4 sesiones). «Mejora/empeora» solo si el IC 95 % excluye el 0.
         </p>
         {overview.exercises.length ? (
           <div className="-mx-4 relative overflow-x-auto sm:mx-0">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-muted">
                 <tr className="border-b border-border">
                   <th className="px-4 py-2 font-medium sm:px-2">Ejercicio</th>
@@ -51,6 +123,7 @@ export default async function WorkoutsPage() {
                   <th className="px-2 py-2 font-medium">Último e1RM</th>
                   <th className="px-2 py-2 font-medium">kg/sem</th>
                   <th className="px-2 py-2 font-medium">Tendencia</th>
+                  <th className="px-2 py-2 font-medium">Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -68,6 +141,7 @@ export default async function WorkoutsPage() {
                     <td className="px-2 py-2">
                       <TrendBadge label={e.label} texts={{ up: "Mejora", down: "Empeora", flat: "Sin cambio claro" }} />
                     </td>
+                    <td className={`px-2 py-2 text-sm font-medium ${STATUS[e.plateau.status].tone}`}>{STATUS[e.plateau.status].text}</td>
                   </tr>
                 ))}
               </tbody>

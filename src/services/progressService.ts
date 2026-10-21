@@ -1,11 +1,15 @@
 import "server-only";
 import { sessionE1rm } from "@/domain/stats/e1rm";
-import { computePrs } from "@/domain/stats/prs";
+import { consistency } from "@/domain/stats/consistency";
+import { detectPlateau } from "@/domain/stats/plateau";
+import { computePrs, type PrRecord } from "@/domain/stats/prs";
 import { strengthTrend } from "@/domain/stats/strengthTrend";
 import { acuteChronicRatio, weeklyVolume } from "@/domain/stats/volume";
 import { addDays, todayIso } from "@/domain/stats/weeks";
 import { exerciseAliasRepo } from "@/repositories/exerciseAliasRepo";
 import { workoutRepo, type ExerciseHistoryRow } from "@/repositories/workoutRepo";
+
+const RECENT_PR_DAYS = 30;
 
 /** Merge several entries of the same exercise within one workout into one session. */
 function bySession(rows: ExerciseHistoryRow[]) {
@@ -43,13 +47,25 @@ export async function getExerciseOverview() {
   const muscleOf = (canonical: string) =>
     [...aliases.values()].find((a) => a.canonical_name === canonical && a.muscle_group)?.muscle_group ?? null;
 
+  const today = todayIso();
+  const prSince = addDays(today, -RECENT_PR_DAYS);
+  const recentPrs: (PrRecord & { exercise: string })[] = [];
+
   const exercises = [...groups.entries()].map(([name, list]) => {
     const sessions = bySession(list);
     const points = sessions
       .map((s) => ({ date: s.date.slice(0, 10), value: sessionE1rm(s.sets) }))
       .filter((p): p is { date: string; value: number } => p.value !== null);
     const trend = strengthTrend(points);
+    const prs = computePrs(sessions.map((s) => ({ date: s.date.slice(0, 10), sets: s.sets })));
+    // The first value of a kind is just the starting point, not a record broken.
+    const firstOf = new Set<string>();
+    for (const ev of prs.events) {
+      if (!firstOf.has(ev.kind)) firstOf.add(ev.kind);
+      else if (ev.date >= prSince) recentPrs.push({ ...ev, exercise: name });
+    }
     return {
+      plateau: detectPlateau(points, trend.label),
       name,
       muscle_group: muscleOf(name),
       sessions: sessions.length,
@@ -61,11 +77,13 @@ export async function getExerciseOverview() {
   });
   exercises.sort((a, b) => (b.last_date ?? "").localeCompare(a.last_date ?? ""));
 
-  const today = todayIso();
   const items = rows.map((r) => ({ date: r.date, muscle_group: muscleOf(r.canonical_name), sets: r.sets }));
   const recent = items.filter((i) => i.date.slice(0, 10) >= addDays(today, -7 * 12));
+  recentPrs.sort((a, b) => b.date.localeCompare(a.date) || a.exercise.localeCompare(b.exercise));
   return {
     exercises,
+    recentPrs,
+    consistency: consistency(rows.map((r) => r.date), today),
     weekly: weeklyVolume(recent, today),
     acwr: acuteChronicRatio(items, today),
   };
