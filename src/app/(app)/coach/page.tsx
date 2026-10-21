@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { BodyHeatmap } from "@/components/body-heatmap";
 import { DbMissing, hasDatabase } from "@/components/db-missing";
 import { Card, CardTitle, EmptyState, PageHeader } from "@/components/ui";
 import type { VolumeStatus } from "@/domain/coach/volumeTargets";
@@ -39,8 +40,9 @@ function Row({ children }: { children: React.ReactNode }) {
   return <li className="border-b border-border/60 py-4 first:pt-0 last:border-0 last:pb-0">{children}</li>;
 }
 
-export default async function CoachPage() {
+export default async function CoachPage({ searchParams }: PageProps<"/coach">) {
   await connection();
+  const mapa = (await searchParams).mapa === "media" ? "media" : "semana";
   if (!hasDatabase())
     return (
       <>
@@ -72,6 +74,31 @@ export default async function CoachPage() {
         <EmptyState>Aún no hay entrenos en las últimas semanas. Sincroniza o importa tus entrenos.</EmptyState>
       ) : (
         <div className="grid gap-6">
+          <Card>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <CardTitle>Mapa muscular</CardTitle>
+              <nav aria-label="Periodo del mapa" className="flex gap-1 text-sm">
+                {(["semana", "media"] as const).map((m) => (
+                  <Link
+                    key={m}
+                    href={m === "semana" ? "/coach" : "/coach?mapa=media"}
+                    aria-current={mapa === m ? "page" : undefined}
+                    className={cn(
+                      "inline-flex min-h-11 items-center rounded-md px-3 text-muted hover:text-strong",
+                      mapa === m && "bg-surface-2 text-strong",
+                    )}
+                  >
+                    {m === "semana" ? "Esta semana" : "Media 3 semanas"}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+            <p className="mb-4 text-xs text-muted">
+              Cuanto más color, más series efectivas frente al máximo semanal recomendado de cada músculo.
+            </p>
+            <BodyHeatmap groups={report.groups} value={(g) => (mapa === "media" ? g.average : g.current.total)} />
+          </Card>
+
           <Card>
             <CardTitle>Esta semana</CardTitle>
             <p className="mb-4 text-xs text-muted">

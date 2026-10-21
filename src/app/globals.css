@@ -82,3 +82,21 @@ body {
   fill: var(--text-muted);
   font-size: 12px;
 }
+
+/* Muscle map: each tagged group takes its colour from --mg-<group>, set by BodyHeatmap. */
+.bodymap path {
+  fill: var(--surface-2);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+.bodymap [data-g="pecho"] path { fill: var(--mg-pecho, var(--surface-2)); }
+.bodymap [data-g="espalda"] path { fill: var(--mg-espalda, var(--surface-2)); }
+.bodymap [data-g="hombro"] path { fill: var(--mg-hombro, var(--surface-2)); }
+.bodymap [data-g="biceps"] path { fill: var(--mg-biceps, var(--surface-2)); }
+.bodymap [data-g="triceps"] path { fill: var(--mg-triceps, var(--surface-2)); }
+.bodymap [data-g="cuadriceps"] path { fill: var(--mg-cuadriceps, var(--surface-2)); }
+.bodymap [data-g="isquios"] path { fill: var(--mg-isquios, var(--surface-2)); }
+.bodymap [data-g="gluteo"] path { fill: var(--mg-gluteo, var(--surface-2)); }
+.bodymap [data-g="gemelo"] path { fill: var(--mg-gemelo, var(--surface-2)); }
+.bodymap [data-g="core"] path { fill: var(--mg-core, var(--surface-2)); }
+.bodymap [data-g="antebrazo"] path { fill: var(--mg-antebrazo, var(--surface-2)); }
