@@ -43,51 +43,13 @@ export function parseStepsRollup(body: unknown): { days: DailySteps[]; unreadabl
   return { days, unreadable };
 }
 
-export interface DailyWeight {
-  date: string;
-  weight_kg: number;
-}
-
-/** `dataPoints.list` response for weight: the latest sample of each civil day, in kg. */
-export function parseWeightPoints(body: unknown): { days: DailyWeight[]; unreadable: number } {
-  const points = (body as { dataPoints?: unknown[] } | null)?.dataPoints ?? [];
-  const latest = new Map<string, { at: string; kg: number }>();
-  let unreadable = 0;
-  for (const p of points as {
-    weight?: { weightGrams?: number | string; sampleTime?: { physicalTime?: string; civilTime?: CivilDateTime } };
-  }[]) {
-    const date = civilToIso(p.weight?.sampleTime?.civilTime);
-    const grams = Number(p.weight?.weightGrams);
-    if (!date || !Number.isFinite(grams) || grams <= 0) {
-      unreadable++;
-      continue;
-    }
-    const at = p.weight?.sampleTime?.physicalTime ?? "";
-    const prev = latest.get(date);
-    if (!prev || at > prev.at) latest.set(date, { at, kg: Math.round(grams / 10) / 100 });
-  }
-  return { days: [...latest].map(([date, v]) => ({ date, weight_kg: v.kg })).sort((a, b) => a.date.localeCompare(b.date)), unreadable };
-}
-
 export interface BodyDay {
   date: string;
-  weight_kg: number | null;
   steps: number | null;
 }
 
-/**
- * What to write: weight only for days with no weigh-in yet (never overwrites a manual one);
- * steps when Google's total is higher than the stored one (the current day grows through the day).
- */
-export function planBodyUpdates(
-  stored: readonly BodyDay[],
-  steps: readonly DailySteps[],
-  weights: readonly DailyWeight[],
-): { date: string; weight_kg?: number; steps?: number }[] {
-  const by = new Map(stored.map((s) => [s.date, s]));
-  const out = new Map<string, { date: string; weight_kg?: number; steps?: number }>();
-  const slot = (date: string) => out.get(date) ?? out.set(date, { date }).get(date)!;
-  for (const s of steps) if (s.steps > (by.get(s.date)?.steps ?? -1)) slot(s.date).steps = s.steps;
-  for (const w of weights) if (by.get(w.date)?.weight_kg == null) slot(w.date).weight_kg = w.weight_kg;
-  return [...out.values()].sort((a, b) => a.date.localeCompare(b.date));
+/** Steps to write: only when Google's total is higher than the stored one (the current day grows through the day). */
+export function planStepUpdates(stored: readonly BodyDay[], steps: readonly DailySteps[]): DailySteps[] {
+  const by = new Map(stored.map((s) => [s.date, s.steps]));
+  return steps.filter((s) => s.steps > (by.get(s.date) ?? -1)).sort((a, b) => a.date.localeCompare(b.date));
 }

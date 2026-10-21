@@ -1,5 +1,5 @@
 import "server-only";
-import { isoToCivil, parseStepsRollup, parseWeightPoints, planBodyUpdates } from "@/domain/google/parse";
+import { isoToCivil, parseStepsRollup, planStepUpdates } from "@/domain/google/parse";
 import { addDays, todayIso } from "@/domain/stats/weeks";
 import { bodyRepo } from "@/repositories/bodyRepo";
 import { googleAuthRepo } from "@/repositories/googleAuthRepo";
@@ -8,11 +8,7 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API = "https://health.googleapis.com/v4/users/me/dataTypes";
 export const STATE_COOKIE = "gymweb_google_state";
-export const GOOGLE_SCALE_NAME = "Google Health";
-export const GOOGLE_SCOPES = [
-  "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
-  "https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly",
-];
+export const GOOGLE_SCOPES = ["https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly"];
 const DEFAULT_WINDOW_DAYS = 14;
 const MAX_WINDOW_DAYS = 90; // dailyRollUp limit for steps
 
@@ -71,7 +67,7 @@ export async function connectWithCode(code: string, origin: string): Promise<voi
   }
   const granted = body.scope ?? "";
   const missing = GOOGLE_SCOPES.filter((s) => !granted.split(" ").includes(s));
-  if (missing.length) throw new GoogleHealthError("Faltan permisos: marca pasos y peso en la pantalla de Google.");
+  if (missing.length) throw new GoogleHealthError("Falta el permiso de actividad: márcalo en la pantalla de Google.");
   await googleAuthRepo.save(body.refresh_token, granted);
 }
 
@@ -110,11 +106,10 @@ async function pages(fetchPage: (pageToken?: string) => Promise<unknown>): Promi
 export interface GoogleSyncResult {
   days: number;
   steps_updated: number;
-  weights_added: number;
   warnings: string[];
 }
 
-/** Pulls daily steps and weight for the last `days` days (today included) into body_log. Idempotent. */
+/** Pulls daily steps for the last `days` days (today included) into body_log (weight is never read from Google). Idempotent. */
 export async function syncGoogleHealth({ days = DEFAULT_WINDOW_DAYS }: { days?: number } = {}): Promise<GoogleSyncResult> {
   const window = Math.min(Math.max(1, Math.round(days)), MAX_WINDOW_DAYS);
   const today = todayIso();
@@ -132,29 +127,21 @@ export async function syncGoogleHealth({ days = DEFAULT_WINDOW_DAYS }: { days?: 
       }),
     }),
   );
-  const weightPages = await pages((pageToken) => {
-    const filter = `weight.sample_time.civil_time >= "${from}" AND weight.sample_time.civil_time < "${addDays(today, 1)}"`;
-    return api(token, `/weight/dataPoints?${new URLSearchParams({ filter, pageSize: "1000", ...(pageToken && { pageToken }) })}`);
-  });
-
-  const steps = stepPages.map(parseStepsRollup);
-  const weights = weightPages.map(parseWeightPoints);
+  const parsed = stepPages.map(parseStepsRollup);
   const warnings: string[] = [];
-  const unreadable = [...steps, ...weights].reduce((n, p) => n + p.unreadable, 0);
+  const unreadable = parsed.reduce((n, p) => n + p.unreadable, 0);
   if (unreadable) warnings.push(`${unreadable} registros de Google con un formato que no se reconoció.`);
 
   const stored = await bodyRepo.list({ from, to: today });
-  const plan = planBodyUpdates(
+  const plan = planStepUpdates(
     stored,
-    steps.flatMap((p) => p.days),
-    weights.flatMap((p) => p.days),
+    parsed.flatMap((p) => p.days),
   );
-  for (const u of plan) await bodyRepo.upsert({ ...u, scale: u.weight_kg !== undefined ? GOOGLE_SCALE_NAME : undefined });
+  for (const u of plan) await bodyRepo.upsert({ date: u.date, steps: u.steps, scale: undefined });
   await googleAuthRepo.touchSync();
   return {
     days: window,
-    steps_updated: plan.filter((u) => u.steps !== undefined).length,
-    weights_added: plan.filter((u) => u.weight_kg !== undefined).length,
+    steps_updated: plan.length,
     warnings,
   };
 }

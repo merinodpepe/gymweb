@@ -6,7 +6,7 @@ import { useEffect } from "react";
 const KEY = "gymweb:lyfta-sync";
 const EVERY_MS = 10 * 60_000;
 
-/** Pulls new Lyfta workouts and Google Health steps/weight when the app is opened (at most every 10 minutes) and refreshes if any arrived. */
+/** Pulls new Lyfta workouts and Google Health steps when the app is opened (at most every 10 minutes) and refreshes if any arrived. */
 export function AutoSync() {
   const router = useRouter();
   useEffect(() => {
@@ -23,8 +23,8 @@ export function AutoSync() {
       fetch("/api/sync-lyfta", { method: "POST" }).then(json).catch(() => null),
       // 409-style "not connected" answers are errors here and are simply ignored.
       fetch("/api/google/sync", { method: "POST" }).then(json).catch(() => null),
-    ]).then(([lyfta, google]: [{ created?: number } | null, { steps_updated?: number; weights_added?: number } | null]) => {
-      if (lyfta?.created || google?.steps_updated || google?.weights_added) router.refresh();
+    ]).then(([lyfta, google]: [{ created?: number } | null, { steps_updated?: number } | null]) => {
+      if (lyfta?.created || google?.steps_updated) router.refresh();
     });
   }, [router]);
   return null;

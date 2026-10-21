@@ -19,7 +19,7 @@ export function GoogleHealthCard({ connected, lastSync, notice }: { connected: b
     const body = await res?.json().catch(() => null);
     if (!res?.ok) return setText({ ok: false, msg: body?.error ?? "No se pudo sincronizar" });
     const extra = body.warnings?.length ? ` ${body.warnings.join(" ")}` : "";
-    setText({ ok: true, msg: `${body.steps_updated} días de pasos y ${body.weights_added} pesajes nuevos (últimos ${body.days} días).${extra}` });
+    setText({ ok: true, msg: `${body.steps_updated} días de pasos actualizados (últimos ${body.days} días).${extra}` });
     router.refresh();
   }
 
@@ -35,7 +35,7 @@ export function GoogleHealthCard({ connected, lastSync, notice }: { connected: b
     <section className="mb-6 rounded-lg border border-border bg-surface p-4">
       <h2 className="font-display text-lg text-strong">Google Health</h2>
       <p className="mb-3 text-xs text-muted">
-        Trae tus pasos y tu peso. No pisa un pesaje que ya hayas registrado; los pasos solo suben si Google tiene más.
+        Trae tus pasos diarios (el peso no se lee de Google). Los pasos solo suben si Google tiene más que lo guardado.
         {connected && lastSync && ` Última sincronización: ${lastSync}.`}
       </p>
       <div className="flex flex-wrap items-center gap-3">
