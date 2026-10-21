@@ -11,11 +11,16 @@ export function ConsistencyKpis({ c }: { c: Consistency }) {
         label="Racha"
         value={String(c.current_streak)}
         unit={c.current_streak === 1 ? "semana" : "semanas"}
-        detail={`Récord: ${c.longest_streak} · semanas seguidas con entreno`}
+        detail={`Récord: ${c.longest_streak} · semanas seguidas cumpliendo el objetivo`}
       />
-      <KpiCard label="Esta semana" value={String(c.workouts_this_week)} unit={c.workouts_this_week === 1 ? "entreno" : "entrenos"} />
+      <KpiCard
+        label="Esta semana"
+        value={String(c.workouts_this_week)}
+        unit={`/ ${c.target_this_week} entrenos`}
+        detail={`${Math.min(100, Math.round((c.workouts_this_week / c.target_this_week) * 100))}% de la semana`}
+      />
       <KpiCard label="Media semanal" value={fmt(c.avg_per_week, 1)} unit="días/sem" detail={`${c.total_workouts} días de entreno en total`} />
-      <KpiCard label="Constancia" value={String(c.score)} unit="%" detail="Semanas con al menos un entreno" />
+      <KpiCard label="Constancia media" value={String(c.score)} unit="%" detail="Media del % de cada semana (100% = 3 entrenos; 4 desde el 19/10/2026)" />
     </div>
   );
 }
