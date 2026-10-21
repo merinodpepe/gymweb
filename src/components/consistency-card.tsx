@@ -42,7 +42,7 @@ export function WorkoutHeatmap({ weeks }: { weeks: Consistency["heatmap"] }) {
             <span
               key={i}
               title={on ? `Entreno · semana del ${fmtShortDate(w.week_start)}` : undefined}
-              className={on ? "size-3.5 rounded-sm bg-accent" : "size-3.5 rounded-sm bg-surface-2"}
+              className={on ? "size-3.5 rounded-sm bg-good" : "size-3.5 rounded-sm bg-surface-2"}
             />
           ))}
         </div>

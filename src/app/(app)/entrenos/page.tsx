@@ -9,12 +9,13 @@ import { Badge, Card, CardTitle, EmptyState, PageHeader } from "@/components/ui"
 import type { ExerciseStatus } from "@/domain/stats/plateau";
 import { fmt, fmtDate, fmtShortDate, fmtSigned } from "@/lib/format";
 import { workoutRepo } from "@/repositories/workoutRepo";
-import { getExerciseOverview } from "@/services/progressService";
+import { getExerciseOverview, INACTIVE_AFTER_DAYS } from "@/services/progressService";
 
 export const metadata = { title: "Entrenos" };
 
 const STATUS: Record<ExerciseStatus, { text: string; tone: string }> = {
   mejorando: { text: "Progresando", tone: "text-good" },
+  estable: { text: "Estable", tone: "text-neutral" },
   estancado: { text: "Estancado", tone: "text-accent" },
   bajando: { text: "Bajando", tone: "text-bad" },
   pocos_datos: { text: "Pocos datos", tone: "text-muted" },
@@ -33,7 +34,9 @@ export default async function WorkoutsPage() {
 
   const [overview, recent] = await Promise.all([getExerciseOverview(), workoutRepo.list({}, 20)]);
   const weeks = overview.weekly.slice(-8);
-  const stalled = overview.exercises.filter((e) => e.plateau.status === "estancado");
+  const active = overview.exercises.filter((e) => !e.inactive);
+  const inactive = overview.exercises.filter((e) => e.inactive);
+  const stalled = active.filter((e) => e.plateau.status === "estancado");
   const groups = [...new Set(weeks.flatMap((w) => Object.keys(w.sets_by_group)))].sort();
 
   return (
@@ -111,9 +114,14 @@ export default async function WorkoutsPage() {
       <Card className="mt-6">
         <CardTitle>Ejercicios</CardTitle>
         <p className="mb-3 text-xs text-muted">
-          Pendiente en kg de e1RM por semana (últimas 12 semanas, ≥4 sesiones). «Mejora/empeora» solo si el IC 95 % excluye el 0.
+          Solo ejercicios que has hecho en los últimos {INACTIVE_AFTER_DAYS} días; el resto está en «En desuso», abajo.{" "}
+          <strong className="font-medium text-text">e1RM</strong> = repetición máxima estimada: el peso que podrías levantar
+          una sola vez, calculado con tu mejor serie de la sesión (media de Epley y Brzycki, hasta 10 repeticiones). Sirve
+          para comparar sesiones aunque cambies peso y repeticiones. kg/sem es cuánto sube o baja tu e1RM por semana
+          (últimas 12 semanas, ≥4 sesiones); «Mejora/empeora» solo si el IC 95 % excluye el 0. «Progresando» exige un récord
+          reciente o tendencia al alza; si no, «Estable».
         </p>
-        {overview.exercises.length ? (
+        {active.length ? (
           <div className="-mx-4 relative overflow-x-auto sm:mx-0">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-muted">
@@ -127,7 +135,7 @@ export default async function WorkoutsPage() {
                 </tr>
               </thead>
               <tbody>
-                {overview.exercises.map((e) => (
+                {active.map((e) => (
                   <tr key={e.name} className="border-b border-border/60 last:border-0">
                     <td className="px-4 py-2 sm:px-2">
                       <Link href={`/entrenos/${encodeURIComponent(e.name)}`} className="font-medium text-strong hover:text-accent hover:underline">
@@ -149,8 +157,38 @@ export default async function WorkoutsPage() {
           </div>
         ) : (
           <EmptyState>
-            Aún no hay entrenos. <Link href="/importar" className="underline">Importa uno desde Lyfta</Link>.
+            {overview.exercises.length ? (
+              "Ningún ejercicio en los últimos 14 días."
+            ) : (
+              <>
+                Aún no hay entrenos. <Link href="/importar" className="underline">Importa uno desde Lyfta</Link>.
+              </>
+            )}
           </EmptyState>
+        )}
+
+        {inactive.length > 0 && (
+          <details className="mt-6 border-t border-border pt-4">
+            <summary className="min-h-11 cursor-pointer text-sm font-medium text-strong">
+              En desuso ({inactive.length}) <span className="font-normal text-muted">· más de {INACTIVE_AFTER_DAYS} días sin hacerlos</span>
+            </summary>
+            <ul className="mt-2 divide-y divide-border/60 text-sm">
+              {inactive.map((e) => (
+                <li key={e.name} className="flex flex-wrap items-baseline justify-between gap-x-3 py-2">
+                  <span>
+                    <Link href={`/entrenos/${encodeURIComponent(e.name)}`} className="font-medium text-strong hover:text-accent hover:underline">
+                      {e.name}
+                    </Link>
+                    {e.muscle_group && <span className="ml-2 text-xs text-muted">{e.muscle_group}</span>}
+                  </span>
+                  <span className="text-xs text-muted num">
+                    {e.sessions} sesiones · último e1RM {e.last_e1rm ? `${fmt(e.last_e1rm, 1)} kg` : "—"} · última vez{" "}
+                    {e.last_date ? fmtDate(e.last_date, { year: true }) : "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </Card>
 

@@ -5,11 +5,13 @@ import { detectPlateau } from "@/domain/stats/plateau";
 import { computePrs, type PrRecord } from "@/domain/stats/prs";
 import { strengthTrend } from "@/domain/stats/strengthTrend";
 import { acuteChronicRatio, weeklyVolume } from "@/domain/stats/volume";
-import { addDays, todayIso } from "@/domain/stats/weeks";
+import { addDays, daysBetween, todayIso } from "@/domain/stats/weeks";
 import { exerciseAliasRepo } from "@/repositories/exerciseAliasRepo";
 import { workoutRepo, type ExerciseHistoryRow } from "@/repositories/workoutRepo";
 
 const RECENT_PR_DAYS = 30;
+/** An exercise not done for longer than this moves to the "en desuso" list. */
+export const INACTIVE_AFTER_DAYS = 14;
 
 /** Merge several entries of the same exercise within one workout into one session. */
 function bySession(rows: ExerciseHistoryRow[]) {
@@ -64,7 +66,9 @@ export async function getExerciseOverview() {
       if (!firstOf.has(ev.kind)) firstOf.add(ev.kind);
       else if (ev.date >= prSince) recentPrs.push({ ...ev, exercise: name });
     }
+    const lastDate = sessions.at(-1)?.date ?? null;
     return {
+      inactive: lastDate === null || daysBetween(lastDate.slice(0, 10), today) > INACTIVE_AFTER_DAYS,
       plateau: detectPlateau(points, trend.label),
       name,
       muscle_group: muscleOf(name),

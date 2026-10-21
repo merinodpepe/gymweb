@@ -32,6 +32,10 @@ describe("plateau", () => {
   it("keeps improving lifts out", () => {
     expect(detectPlateau(pts([100, 102, 104, 106, 108]), "up").status).toBe("mejorando");
   });
+  it("does not call a lift 'mejorando' without evidence", () => {
+    expect(detectPlateau(pts([100, 110, 108, 109, 110]), "flat").status).toBe("estable");
+    expect(detectPlateau(pts([100, 101, 100, 101, 112]), "flat").status).toBe("mejorando");
+  });
   it("needs data", () => {
     expect(detectPlateau(pts([100, 101]), null).status).toBe("pocos_datos");
   });

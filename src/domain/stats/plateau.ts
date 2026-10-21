@@ -7,7 +7,7 @@ export const PLATEAU_MIN_DAYS = 21;
 /** A session only counts as progress if it beats the previous best by more than this. */
 export const PLATEAU_GAIN_PCT = 0.01;
 
-export type ExerciseStatus = "mejorando" | "estancado" | "bajando" | "pocos_datos";
+export type ExerciseStatus = "mejorando" | "estable" | "estancado" | "bajando" | "pocos_datos";
 
 export interface PlateauInfo {
   status: ExerciseStatus;
@@ -18,8 +18,9 @@ export interface PlateauInfo {
 }
 
 /**
- * Plateau = no new e1RM best (+1 %) for ≥ 4 sessions and ≥ 21 days, and the
- * 12-week trend is not clearly up. "Bajando" = a clear downward trend.
+ * Plateau = no new e1RM best (+1 %) for ≥ 4 sessions and ≥ 21 days, and the 12-week trend is not clearly up.
+ * "Bajando" = a clear downward trend. "Mejorando" needs evidence: a clear upward trend, or a new best within the
+ * last 3 sessions. Anything else is "estable".
  */
 export function detectPlateau(points: readonly DatedValue[], trend: TrendLabel | null): PlateauInfo {
   const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
@@ -34,7 +35,8 @@ export function detectPlateau(points: readonly DatedValue[], trend: TrendLabel |
   }
   const sessions = sorted.length - 1 - gainIdx;
   const days = Math.floor(daysBetween(sorted[gainIdx].date, sorted[sorted.length - 1].date));
+  const stalled = sessions >= PLATEAU_MIN_SESSIONS && days >= PLATEAU_MIN_DAYS;
   const status: ExerciseStatus =
-    trend === "down" ? "bajando" : sessions >= PLATEAU_MIN_SESSIONS && days >= PLATEAU_MIN_DAYS && trend !== "up" ? "estancado" : "mejorando";
+    trend === "down" ? "bajando" : stalled && trend !== "up" ? "estancado" : trend === "up" || sessions < 3 ? "mejorando" : "estable";
   return { status, sessions_since_gain: sessions, days_since_gain: days, best_e1rm: best };
 }
