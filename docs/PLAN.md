@@ -112,7 +112,7 @@ Todo son funciones puras con tests numéricos (valores a mano y contra scipy).
 - Ritmo agregado = Σtiempo / Σdistancia (ponderado), **nunca media aritmética de ritmos**. Desnivel = suma. Cinta y exterior se analizan por separado (no comparables). Mejora de ritmo solo entre rodajes comparables (misma superficie, distancia ±20 %).
 - Pasos: media 7 d y percentiles; los días sin dato no cuentan como 0.
 
-**7.6 Cruces (fase final, vista aparte)**: e1RM relativo = e1RM / peso EWMA. Cualquier cruce con nutrición solo en su propia vista, nunca en el Dashboard.
+**7.6 Cruces (fase final, vista aparte; ideas ampliadas en la sección 15)**: e1RM relativo = e1RM / peso EWMA. Cualquier cruce con nutrición solo en su propia vista, nunca en el Dashboard.
 
 ## 8. Servicios y API
 - `GET /api/dashboard?range=90d` → `dashboardService`: usa **solo** `bodyRepo` y `runRepo` (peso actual, EWMA, media 7 d, pendiente+IC, pasos hoy y media 7 d, resumen carreras de la semana). Test de arquitectura (`arch.test.ts`) que falla si importa `nutritionRepo`.
@@ -167,3 +167,76 @@ Sistema elegido (base gymlife):
 
 ## 14. Resumen de decisiones (para PLAN.json)
 `db: Neon Postgres` · `framework: Next.js+TS` · `orm: Drizzle` · `validation: Zod` · `ui: Tailwind+shadcn+Recharts` · `theme: dark, accent #f36100, Oswald+Inter` · `hosting: Vercel` · `strength: e1RM best-set/session, EWMA + Theil-Sen` · `weight: EWMA α0.1 + OLS slope CI` · `pace: weighted Σt/Σd`
+
+## 15. Gráficos y correlaciones por explorar (añadido 21 oct 2026)
+
+Ideas para cuando haya meses de datos. Desarrolla la vista de cruces del punto 7.6. Cada una indica los datos que usa, qué mostraría y qué cuidado estadístico exige. **Nutrición solo en su propia vista, nunca en el Dashboard** (regla del plan).
+
+### 15.1 Reglas para no engañarnos
+- **Pocos datos:** con menos de ~30 pares de observaciones no se muestra coeficiente, solo el gráfico de dispersión. Siempre se indica `n`.
+- **Correlación no es causa:** el texto de cada vista dice «relación observada», nunca «efecto».
+- **Retardos (lag):** peso y fuerza reaccionan con días de retraso. Se prueba con retardos de 0 a 7 días y se muestra el mejor, avisando de que probar muchos retardos infla el azar.
+- **Métodos robustos:** correlación de Spearman (por rangos) y recta de Theil-Sen, como en el resto de la app, con IC 95 % por bootstrap. No Pearson por defecto.
+- **Comparaciones múltiples:** si se prueban N pares de variables, solo se destacan los que sobreviven a la corrección (Benjamini-Hochberg). El resto se muestra como «sin relación clara».
+- **Días sin dato** no son cero: se excluye el par.
+- **Confusores conocidos:** la báscula (ya se corrige con la calibración), la hidratación y la sal (el peso del día es ruido), y semanas parciales.
+
+### 15.2 Gráficos de una sola variable (rápidos de hacer, mucho valor)
+1. **Calendario de entrenos por mes** con volumen (tonelaje) como intensidad del color. Ya existe la rejilla de constancia; falta el volumen.
+2. **e1RM por ejercicio con bandas:** puntos por sesión, EWMA y marca de «estancado / récord». Ya hay datos en la ficha del ejercicio; falta superponer los PRs.
+3. **Series efectivas por músculo, apiladas por semana**, con la banda objetivo del Coach sombreada.
+4. **Distribución de repeticiones** (1-5, 6-10, 11-15, 16+) por grupo muscular: ¿entrenas solo en un rango?
+5. **Ritmo de carrera por semana** (ritmo agregado ponderado, cinta y exterior por separado) con el desnivel como tamaño del punto.
+6. **Pasos: perfil por día de la semana** (media y mediana de lunes a domingo) y días sobre el objetivo.
+7. **Peso: tasa de cambio semanal** (kg/sem) como barras, no solo la curva.
+8. **Hora del día del entreno** frente al volumen total (los entrenos guardan la hora local).
+
+### 15.3 Cruces peso ↔ resto
+| Pregunta | Variables | Qué se muestra |
+|---|---|---|
+| ¿El peso baja más las semanas que corro más? | km/semana (carreras) vs cambio de peso EWMA de la semana siguiente | dispersión + Spearman con retardo 0-14 d |
+| ¿Más pasos, menos peso? | media 7 d de pasos vs pendiente del peso a 14 d | dispersión semanal |
+| ¿Cuánto pesa realmente cada báscula? | sesgo por báscula (ya calculado) | barras con IC; avisar si una báscula deriva con el tiempo |
+| ¿Mi peso sube los días tras entrenar piernas? | peso del día vs series de piernas de los 2 días anteriores | caja por nivel de volumen (retención de líquidos, solo orientativo) |
+
+### 15.4 Cruces fuerza ↔ resto
+| Pregunta | Variables | Qué se muestra |
+|---|---|---|
+| **¿Mi fuerza relativa mejora?** | e1RM / peso EWMA por ejercicio | línea por ejercicio (ya prevista en 7.6) |
+| ¿Subo más cuando entreno un músculo más veces por semana? | frecuencia semanal del grupo vs Δe1RM mensual de sus ejercicios | dispersión por ejercicio; mínimo 8 semanas |
+| ¿Más volumen = más progreso, o hay un tope? | series efectivas/semana del grupo vs pendiente Theil-Sen de e1RM | curva suavizada: ¿se aplana a partir de cierto volumen? |
+| ¿Dormir/descansar entre sesiones ayuda? | días de descanso antes de la sesión vs e1RM de esa sesión (relativo a la tendencia) | dispersión con residuos de la tendencia |
+| ¿Rindo menos en la 1ª o 2ª hora del entreno? | posición del ejercicio en la sesión vs e1RM relativo a su media | barras por posición (controlando por ejercicio) |
+| ¿El peso sube y mi fuerza también? | pendiente de peso vs pendiente de e1RM (ventanas de 8 semanas) | cuadrantes: ganando fuerza con/sin ganar peso |
+| ¿Qué entrenos se me caen? | rutina vs días de la semana en que fallo | mapa de calor de adherencia: planificado vs hecho |
+
+### 15.5 Cruces con carrera
+- **Carrera y fuerza de piernas:** km/semana vs e1RM de sentadilla/prensa/peso muerto en las 2 semanas siguientes (¿interfiere correr con la fuerza?). Retardo explícito y aviso de confusores (fase de volumen/definición).
+- **Ritmo vs peso:** ritmo de rodajes comparables (misma superficie, distancia ±20 %) frente al peso EWMA del día. Es la relación «cada kg menos = X segundos por km».
+- **Cinta vs exterior:** diferencia de ritmo a igual esfuerzo percibido (solo si se añade un campo de esfuerzo).
+
+### 15.6 Cruces con nutrición (vista propia)
+- **Balance semanal:** kcal medias de la semana vs cambio de peso EWMA de la misma semana, con la ecuación implícita: **kcal de mantenimiento estimadas** = ingesta media − 7700 × Δpeso/7 (kcal/kg de tejido; es una aproximación). Útil para ver cuándo el peso no se mueve como se espera.
+- **Proteína vs progreso de fuerza:** g/kg de proteína (semanal) vs Δe1RM. Con avisos: solo alcanza validez con muchas semanas de registro.
+- **Fibra vs peso diario:** peso del día vs fibra de los 2 días anteriores (la fibra retiene agua).
+- **Carbohidratos vs rendimiento:** carbohidratos del día anterior vs volumen o e1RM de la sesión.
+- **Registro vs cumplimiento:** días con nutrición registrada (para no confundir «no registré» con «no comí»).
+
+### 15.7 Alertas y resúmenes automáticos (derivadas de lo anterior)
+- «Llevas 3 semanas con volumen alto y el e1RM no sube: posible descarga».
+- «Tus pasos bajaron un 30 % esta semana respecto a tu media de 4 semanas».
+- «Esta semana corriste X km más que tu media y tu peso bajó Y kg».
+- **Informe mensual** (una página): peso, pasos, km, volumen, PRs, ejercicios estancados y músculos descuidados, con las 3 relaciones más fuertes encontradas.
+
+### 15.8 Datos que faltan y habría que empezar a registrar
+- **Fallo muscular / RIR:** marcar las series «al fallo» en Lyfta (ya apuntado en `PENDIENTE.md`). Permite series efectivas reales.
+- **Sueño y frecuencia cardíaca en reposo:** Google Health los ofrece (permisos `sleep` y de salud). Hoy solo se leen pasos; sería la mayor mejora para cruces de recuperación.
+- **Esfuerzo percibido de la carrera** (1-10) y **energía del día**: un campo opcional más.
+- **Medidas corporales** (cintura, brazo) para no depender solo del peso.
+
+### 15.9 Orden sugerido
+1. Gráficos de 15.2 que ya tienen datos (1, 3, 5, 6, 7).
+2. Fuerza relativa (7.6) y peso ↔ pasos/km (15.3).
+3. Balance de kcal y peso (15.6), vista propia.
+4. Informe mensual y alertas (15.7).
+5. Sueño y reposo desde Google Health (15.8), cuando haya semanas de datos.
