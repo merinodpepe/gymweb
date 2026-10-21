@@ -10,7 +10,7 @@ export function BodyForm({ today, scales }: { today: string; scales: string[] })
   return (
     <form
       noValidate
-      className="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:items-end"
+      className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:items-end"
       onSubmit={async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
@@ -19,11 +19,9 @@ export function BodyForm({ today, scales }: { today: string; scales: string[] })
           date: v.date,
           weight_kg: v.weight_kg || undefined,
           scale: v.scale || undefined,
-          steps: v.steps || undefined,
         });
         if (ok) {
           (form.elements.namedItem("weight_kg") as HTMLInputElement).value = "";
-          (form.elements.namedItem("steps") as HTMLInputElement).value = "";
         }
       }}
     >
@@ -41,13 +39,10 @@ export function BodyForm({ today, scales }: { today: string; scales: string[] })
           ))}
         </datalist>
       </Field>
-      <Field label="Pasos" htmlFor="body-steps" error={errors.steps}>
-        <Input id="body-steps" name="steps" inputMode="numeric" placeholder="9500" />
-      </Field>
       <Button type="submit" className="col-span-2 sm:col-span-1">
-        Guardar
+        Guardar peso
       </Button>
-      <div className="col-span-2 sm:col-span-5">
+      <div className="col-span-2 sm:col-span-4">
         <FormMessage message={message} />
       </div>
     </form>

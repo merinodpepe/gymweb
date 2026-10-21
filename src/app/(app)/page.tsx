@@ -1,5 +1,6 @@
 import { DbMissing, hasDatabase } from "@/components/db-missing";
 import { BodyForm } from "@/components/forms/body-form";
+import { StepsForm } from "@/components/forms/steps-form";
 import { KpiCard } from "@/components/kpi-card";
 import { ProgressBar } from "@/components/progress-bar";
 import { normalizeRange, RangeTabs } from "@/components/range-tabs";
@@ -118,11 +119,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
         </Card>
       </div>
 
-      <Card className="mt-6">
-        <CardTitle>Registrar peso y pasos</CardTitle>
-        <p className="mb-4 text-xs text-muted">Si ya hay datos ese día, solo se sobrescriben los campos que rellenes.</p>
-        <BodyForm today={d.today} scales={d.scaleNames} />
-      </Card>
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardTitle>Registrar peso</CardTitle>
+          <p className="mb-4 text-xs text-muted">Si ya hay un pesaje ese día, se sobrescribe; los pasos del día no se tocan.</p>
+          <BodyForm today={d.today} scales={d.scaleNames} />
+        </Card>
+        <Card>
+          <CardTitle>Registrar pasos</CardTitle>
+          <p className="mb-4 text-xs text-muted">Se guarda aparte: no hace falta repetir el pesaje del día.</p>
+          <StepsForm today={d.today} />
+        </Card>
+      </div>
 
       {weight.scales.length > 0 && (
         <Card className="mt-6">
