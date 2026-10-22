@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, Dumbbell, FileUp, Footprints, LayoutDashboard, Database, Salad } from "lucide-react";
+import { ChartScatter, ClipboardList, Dumbbell, FileUp, Footprints, LayoutDashboard, Database, Salad } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/", label: "Dashboard", short: "Inicio", icon: LayoutDashboard },
   { href: "/entrenos", label: "Entrenos", icon: Dumbbell },
   { href: "/coach", label: "Coach", icon: ClipboardList },
+  { href: "/analisis", label: "Análisis", short: "Análisis", icon: ChartScatter },
   { href: "/carrera", label: "Carrera", icon: Footprints },
   { href: "/nutricion", label: "Nutrición", short: "Dieta", icon: Salad },
   { href: "/importar", label: "Importar", icon: FileUp },
@@ -61,7 +62,7 @@ export function NavBottom() {
   return (
     <nav
       aria-label="Principal"
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-8 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       {ITEMS.map(({ href, label, short, icon: Icon }) => (
         <Link

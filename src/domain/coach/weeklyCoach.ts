@@ -22,6 +22,8 @@ export interface GroupWeek {
   partial: boolean;
   direct: number;
   total: number;
+  /** Direct working sets taken to failure (Lyfta set type "fallo"). */
+  failure: number;
 }
 
 export interface GroupReport {
@@ -36,6 +38,10 @@ export interface GroupReport {
   average: number;
   /** Mean number of sessions per week with direct work for this group. */
   frequency: number;
+  /** Mean direct sets to failure per complete week. */
+  failure_average: number;
+  /** Share of direct working sets taken to failure over the complete weeks (null without direct sets). */
+  failure_share: number | null;
   status: VolumeStatus;
   /** Sets per week missing to reach the bottom of the range (0 if there). */
   deficit: number;
@@ -49,11 +55,27 @@ export interface CoachReport {
   /** Working sets in the window whose exercise has no muscle group. */
   unassigned_sets: number;
   has_data: boolean;
+  /** Any set to failure in the window: until there is one, failure advice is not given (not tracked yet). */
+  tracks_failure: boolean;
 }
+
+/** Below this share of direct sets to failure there is little stimulus; above it, fatigue builds up. Orientative. */
+export const FAILURE_SHARE_MIN = 0.1;
+export const FAILURE_SHARE_MAX = 0.5;
+/** Direct sets per week needed before failure advice is worth giving. */
+const FAILURE_ADVICE_MIN_SETS = 4;
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const workingSets = (sets: readonly WorkoutSet[]) => sets.filter((s) => !s.is_warmup).length;
+const failureSets = (sets: readonly WorkoutSet[]) => sets.filter((s) => !s.is_warmup && s.is_failure).length;
+
+function failureAdvice(group: string, direct: number, share: number | null, tracks: boolean): string {
+  if (!tracks || share === null || direct < FAILURE_ADVICE_MIN_SETS) return "";
+  if (share === 0) return ` Nunca llegas al fallo en ${group}: lleva a fallo (o a 1–2 reps de él) la última serie de algún ejercicio.`;
+  if (share > FAILURE_SHARE_MAX) return ` El ${Math.round(share * 100)} % de tus series de ${group} son al fallo: es mucha fatiga; deja varias a 1–3 reps del fallo.`;
+  return "";
+}
 
 function adviceFor(group: string, status: VolumeStatus, average: number, deficit: number, frequency: number, range: SetRange) {
   if (status === "muy_bajo" || status === "bajo") {
@@ -76,6 +98,7 @@ export function weeklyCoach(items: readonly CoachSession[], today: string): Coac
   const index = new Map(starts.map((s, i) => [s, i]));
 
   const direct = new Map<string, number[]>();
+  const failure = new Map<string, number[]>();
   const indirect = new Map<string, number[]>();
   const days = new Map<string, Set<string>[]>();
   const cell = (m: Map<string, number[]>, g: string) => {
@@ -85,6 +108,9 @@ export function weeklyCoach(items: readonly CoachSession[], today: string): Coac
   };
   let unassigned = 0;
   let any = false;
+  let tracks = false;
+  /** First week (index) with a set to failure anywhere: earlier weeks were not tracked, so they do not dilute the share. */
+  let trackStart = starts.length;
 
   for (const it of items) {
     const w = index.get(isoWeekStart(it.date));
@@ -94,6 +120,12 @@ export function weeklyCoach(items: readonly CoachSession[], today: string): Coac
     any = true;
     if (it.muscle_group) {
       cell(direct, it.muscle_group)[w] += n;
+      const f = failureSets(it.sets);
+      if (f) {
+        cell(failure, it.muscle_group)[w] += f;
+        tracks = true;
+        trackStart = Math.min(trackStart, w);
+      }
       const d = days.get(it.muscle_group) ?? starts.map(() => new Set<string>());
       d[w].add(it.date.slice(0, 10));
       days.set(it.muscle_group, d);
@@ -107,11 +139,13 @@ export function weeklyCoach(items: readonly CoachSession[], today: string): Coac
   const groups: GroupReport[] = names.map((group) => {
     const d = direct.get(group) ?? starts.map(() => 0);
     const i = indirect.get(group) ?? starts.map(() => 0);
+    const fl = failure.get(group) ?? starts.map(() => 0);
     const weeks: GroupWeek[] = starts.map((week_start, k) => ({
       week_start,
       partial: week_start === current,
       direct: d[k],
       total: round1(d[k] + i[k]),
+      failure: fl[k],
     }));
     const complete = weeks.filter((w) => !w.partial);
     const average = round1(mean(complete.map((w) => w.total)));
@@ -119,6 +153,11 @@ export function weeklyCoach(items: readonly CoachSession[], today: string): Coac
     const range = rangeFor(group);
     const status = classify(average, range);
     const deficit = round1(Math.max(0, range.min - average));
+    const tracked = weeks.filter((w, k) => !w.partial && k >= trackStart);
+    const directTotal = tracked.reduce((t, w) => t + w.direct, 0);
+    const failureTotal = tracked.reduce((t, w) => t + w.failure, 0);
+    const failure_share = directTotal > 0 ? failureTotal / directTotal : null;
+    const failure_average = round1(mean(complete.map((w) => w.failure)));
     return {
       group,
       range,
@@ -127,11 +166,15 @@ export function weeklyCoach(items: readonly CoachSession[], today: string): Coac
       current_deficit: round1(Math.max(0, range.min - weeks[weeks.length - 1].total)),
       average,
       frequency,
+      failure_average,
+      failure_share,
       status,
       deficit,
-      advice: adviceFor(group, status, average, deficit, frequency, range),
+      advice:
+        adviceFor(group, status, average, deficit, frequency, range) +
+        failureAdvice(group, directTotal / Math.max(1, tracked.length), failure_share, tracks),
     };
   });
   groups.sort((a, b) => a.average - b.average || a.group.localeCompare(b.group));
-  return { week_starts: starts, groups, unassigned_sets: unassigned, has_data: any };
+  return { week_starts: starts, groups, unassigned_sets: unassigned, has_data: any, tracks_failure: tracks };
 }

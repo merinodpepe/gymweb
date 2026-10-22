@@ -26,7 +26,15 @@ export const bodyRepo: BodyRepo = {
         ),
       )
       .orderBy(asc(bodyLog.date));
-    return rows.map((r) => ({ date: r.date, weight_kg: toNum(r.weightKg), steps: r.steps, scale: r.scale }));
+    return rows.map((r) => ({
+      date: r.date,
+      weight_kg: toNum(r.weightKg),
+      steps: r.steps,
+      scale: r.scale,
+      energy: r.energy,
+      waist_cm: toNum(r.waistCm),
+      arm_cm: toNum(r.armCm),
+    }));
   },
 
   async upsert(e) {
@@ -36,13 +44,24 @@ export const bodyRepo: BodyRepo = {
     const scale = e.weight_kg !== undefined ? (e.scale ?? null) : null;
     await getDb()
       .insert(bodyLog)
-      .values({ date: e.date, weightKg: weight, steps, scale })
+      .values({
+        date: e.date,
+        weightKg: weight,
+        steps,
+        scale,
+        energy: e.energy ?? null,
+        waistCm: e.waist_cm !== undefined ? String(e.waist_cm) : null,
+        armCm: e.arm_cm !== undefined ? String(e.arm_cm) : null,
+      })
       .onConflictDoUpdate({
         target: bodyLog.date,
         set: {
           weightKg: e.weight_kg !== undefined ? weight : sql`${bodyLog.weightKg}`,
           steps: e.steps !== undefined ? steps : sql`${bodyLog.steps}`,
           scale: e.weight_kg !== undefined ? scale : sql`${bodyLog.scale}`,
+          energy: e.energy !== undefined ? (e.energy ?? null) : sql`${bodyLog.energy}`,
+          waistCm: e.waist_cm !== undefined ? String(e.waist_cm) : sql`${bodyLog.waistCm}`,
+          armCm: e.arm_cm !== undefined ? String(e.arm_cm) : sql`${bodyLog.armCm}`,
           updatedAt: sql`now()`,
         },
       });

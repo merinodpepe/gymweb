@@ -9,6 +9,8 @@ export const SetSchema = z.object({
   bodyweight_kg: z.number().positive().optional(),
   /** Dumbbell exercise: `weight_kg` is ONE dumbbell; volume counts both (as Lyfta does). */
   dumbbell_pair: z.literal(true).optional(),
+  /** Set marked as "failure" in Lyfta (`set_type_id` 4): taken to muscular failure. */
+  is_failure: z.literal(true).optional(),
 });
 
 export const ExerciseSchema = z.object({

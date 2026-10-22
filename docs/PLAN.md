@@ -147,6 +147,7 @@ Sistema elegido (base gymlife):
 5. [ ] Fuerza: e1RM, Theil-Sen, PRs, volumen semanal, alias de ejercicios.
 6. [ ] Nutrición: vista independiente con medias semanales.
 7. [ ] Pulido: export CSV, backup, despliegue Vercel, modo claro.
+8. [x] Mejoras (sección 15, implementado el 22 oct 2026): series al fallo, gráficos 15.2, cruces 15.3-15.5, alertas e informe mensual, esfuerzo/energía/medidas.
 
 ## 11. Riesgos / puntos abiertos
 - Regla exacta del volumen de Lyfta (¿incluye calentamientos?): se resuelve con el checksum del primer export real.
@@ -168,7 +169,7 @@ Sistema elegido (base gymlife):
 ## 14. Resumen de decisiones (para PLAN.json)
 `db: Neon Postgres` · `framework: Next.js+TS` · `orm: Drizzle` · `validation: Zod` · `ui: Tailwind+shadcn+Recharts` · `theme: dark, accent #f36100, Oswald+Inter` · `hosting: Vercel` · `strength: e1RM best-set/session, EWMA + Theil-Sen` · `weight: EWMA α0.1 + OLS slope CI` · `pace: weighted Σt/Σd`
 
-## 15. Gráficos y correlaciones por explorar (añadido 21 oct 2026)
+## 15. Mejoras: gráficos, correlaciones y series al fallo (añadido 21 oct 2026)
 
 Ideas para cuando haya meses de datos. Desarrolla la vista de cruces del punto 7.6. Cada una indica los datos que usa, qué mostraría y qué cuidado estadístico exige. **Nutrición solo en su propia vista, nunca en el Dashboard** (regla del plan).
 
@@ -215,28 +216,29 @@ Ideas para cuando haya meses de datos. Desarrolla la vista de cruces del punto 7
 - **Ritmo vs peso:** ritmo de rodajes comparables (misma superficie, distancia ±20 %) frente al peso EWMA del día. Es la relación «cada kg menos = X segundos por km».
 - **Cinta vs exterior:** diferencia de ritmo a igual esfuerzo percibido (solo si se añade un campo de esfuerzo).
 
-### 15.6 Cruces con nutrición (vista propia)
-- **Balance semanal:** kcal medias de la semana vs cambio de peso EWMA de la misma semana, con la ecuación implícita: **kcal de mantenimiento estimadas** = ingesta media − 7700 × Δpeso/7 (kcal/kg de tejido; es una aproximación). Útil para ver cuándo el peso no se mueve como se espera.
-- **Proteína vs progreso de fuerza:** g/kg de proteína (semanal) vs Δe1RM. Con avisos: solo alcanza validez con muchas semanas de registro.
-- **Fibra vs peso diario:** peso del día vs fibra de los 2 días anteriores (la fibra retiene agua).
-- **Carbohidratos vs rendimiento:** carbohidratos del día anterior vs volumen o e1RM de la sesión.
-- **Registro vs cumplimiento:** días con nutrición registrada (para no confundir «no registré» con «no comí»).
-
-### 15.7 Alertas y resúmenes automáticos (derivadas de lo anterior)
+### 15.6 Alertas y resúmenes automáticos (derivadas de lo anterior)
 - «Llevas 3 semanas con volumen alto y el e1RM no sube: posible descarga».
 - «Tus pasos bajaron un 30 % esta semana respecto a tu media de 4 semanas».
 - «Esta semana corriste X km más que tu media y tu peso bajó Y kg».
 - **Informe mensual** (una página): peso, pasos, km, volumen, PRs, ejercicios estancados y músculos descuidados, con las 3 relaciones más fuertes encontradas.
 
-### 15.8 Datos que faltan y habría que empezar a registrar
-- **Fallo muscular / RIR:** marcar las series «al fallo» en Lyfta (ya apuntado en `PENDIENTE.md`). Permite series efectivas reales.
-- **Sueño y frecuencia cardíaca en reposo:** Google Health los ofrece (permisos `sleep` y de salud). Hoy solo se leen pasos; sería la mayor mejora para cruces de recuperación.
+### 15.7 Datos que faltan y habría que empezar a registrar
+- **Fallo muscular:** marcar las series «al fallo» con el tipo de serie de Lyfta (ver 15.9). Permite series efectivas reales.
 - **Esfuerzo percibido de la carrera** (1-10) y **energía del día**: un campo opcional más.
 - **Medidas corporales** (cintura, brazo) para no depender solo del peso.
+- Fuera de alcance por ahora: nutrición y sueño (no se registran; no se planifican vistas ni cruces con ellos).
 
-### 15.9 Orden sugerido
-1. Gráficos de 15.2 que ya tienen datos (1, 3, 5, 6, 7).
-2. Fuerza relativa (7.6) y peso ↔ pasos/km (15.3).
-3. Balance de kcal y peso (15.6), vista propia.
-4. Informe mensual y alertas (15.7).
-5. Sueño y reposo desde Google Health (15.8), cuando haya semanas de datos.
+### 15.8 Orden sugerido
+1. Series al fallo en el coach (15.9): es lo que desbloquea las series efectivas reales.
+2. Gráficos de 15.2 que ya tienen datos (1, 3, 5, 6, 7).
+3. Fuerza relativa (7.6) y peso ↔ pasos/km (15.3).
+4. Informe mensual y alertas (15.6).
+
+### 15.9 Series al fallo en el coach
+- **Objetivo:** que `/coach` distinga series efectivas (cerca del fallo) de series fáciles y avise de grupos donde nunca (o siempre) se llega al fallo.
+- **Marcado:** con el **tipo de serie «fallo»** de Lyfta. La API devuelve `set_type_id` por serie (`0` normal, `1` calentamiento) y también un campo `rir` por serie (hoy siempre `null`).
+- **Código del fallo (22 oct 2026):** en un entreno de prueba de un ejercicio (Smith Calf Raise) con dos series, la API devuelve `set_type_id: "4"` en la serie marcada y `"0"` en la normal. Confirmado por Pepe: `4 = fallo`. Los códigos `2`, `3` y `7` siguen sin identificar.
+- **Datos:** añadir `is_failure?: true` a `SetSchema` (jsonb, sin migración) y rellenarlo en `domain/lyfta/mapApi.ts` desde `set_type_id`. Resincronizar desde la fecha en que se empezó a marcar.
+- **Coach:** en `domain/coach/weeklyCoach.ts`, series al fallo y % sobre el total por grupo y semana; mostrarlo en `app/(app)/coach/page.tsx`.
+- **Tests:** `tests/coach.test.ts` y `tests/mapApi.test.ts`.
+- Hasta que haya datos reales, el coach cuenta como efectivas todas las series de trabajo (sin calentamiento).

@@ -40,6 +40,7 @@ async function rowsFor(table: z.infer<typeof Table>): Promise<Record<string, unk
             dumbbell_pair: s.dumbbell_pair ?? false,
             reps: s.reps,
             is_warmup: s.is_warmup,
+            is_failure: s.is_failure ?? false,
           })),
         ),
       );

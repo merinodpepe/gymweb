@@ -132,6 +132,7 @@ export default async function CoachPage({ searchParams }: PageProps<"/coach">) {
                           : "Mínimo alcanzado."
                         : `Te faltan ${fmt(g.current_deficit)} series para el mínimo.`}
                       {g.current.direct !== g.current.total && ` (${g.current.direct} directas)`}
+                      {report.tracks_failure && g.current.failure > 0 && ` · ${g.current.failure} al fallo`}
                     </p>
                   </Row>
                 );
@@ -143,8 +144,10 @@ export default async function CoachPage({ searchParams }: PageProps<"/coach">) {
             <CardTitle>Últimas 3 semanas</CardTitle>
             <p className="mb-4 text-xs text-muted">
               Media de las 3 semanas completas ({fmtShortDate(previous[0])} – {fmtShortDate(currentStart)}), del músculo
-              menos entrenado al más. Los otros músculos que participan cuentan la mitad (el press suma ½ a Tríceps). Sin
-              RIR no se distingue una serie cerca del fallo de una fácil.
+              menos entrenado al más. Los otros músculos que participan cuentan la mitad (el press suma ½ a Tríceps).{" "}
+              {report.tracks_failure
+                ? "«Al fallo» cuenta las series que marcas con el tipo «fallo» en Lyfta, desde que empezaste a marcarlas."
+                : "Aún no hay series marcadas como «fallo» en Lyfta, así que todas cuentan como efectivas."}
             </p>
 
             {weakest.length > 0 && (
@@ -188,6 +191,12 @@ export default async function CoachPage({ searchParams }: PageProps<"/coach">) {
                         </div>
                       ))}
                   </dl>
+                  {report.tracks_failure && g.failure_share !== null && (
+                    <p className="mt-2 text-xs text-muted num">
+                      Al fallo: <span className="text-strong">{fmt(g.failure_average)}</span> series/sem ·{" "}
+                      <span className="text-strong">{Math.round(g.failure_share * 100)} %</span> de las directas
+                    </p>
+                  )}
                   <p className="mt-2 text-xs text-muted">
                     {g.advice}{g.frequency > 0 && <span className="num"> ({fmt(g.frequency)} días/sem)</span>}
                   </p>

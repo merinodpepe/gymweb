@@ -3,6 +3,8 @@ import { DeleteButton } from "@/components/forms/delete-button";
 import { RunForm } from "@/components/forms/run-form";
 import { normalizeRange, RangeTabs } from "@/components/range-tabs";
 import { TimeChart } from "@/components/time-chart";
+import { WeeklyPaceChart } from "@/components/weekly-pace-chart";
+import { weeklyPace } from "@/domain/insights/charts";
 import { Card, CardTitle, EmptyState, PageHeader } from "@/components/ui";
 import type { Surface } from "@/domain/schemas/run";
 import { formatDuration, formatPace, paceSecPerKm, paceVsComparable, summarizeRuns } from "@/domain/stats/pace";
@@ -64,14 +66,24 @@ export default async function RunsPage({ searchParams }: PageProps<"/carrera">) 
               </dl>
               <div className="mt-4">
                 {list.length ? (
-                  <TimeChart
-                    ariaLabel={`Ritmo por carrera en ${SURFACE_LABEL[surface].toLowerCase()}`}
-                    data={rows}
-                    unit="/km"
-                    format="pace"
-                    height={200}
-                    series={[{ key: "pace", label: "Ritmo", color: "var(--accent)", kind: "dots" }]}
-                  />
+                  <>
+                    <p className="mb-1 text-xs text-muted">Ritmo de cada carrera</p>
+                    <TimeChart
+                      ariaLabel={`Ritmo por carrera en ${SURFACE_LABEL[surface].toLowerCase()}`}
+                      data={rows}
+                      unit="/km"
+                      format="pace"
+                      height={200}
+                      series={[{ key: "pace", label: "Ritmo", color: "var(--accent)", kind: "dots" }]}
+                    />
+                    <p className="mb-1 mt-4 text-xs text-muted">
+                      Ritmo semanal (tiempo total / distancia total de la semana); el tamaño del punto es el desnivel.
+                    </p>
+                    <WeeklyPaceChart
+                      ariaLabel={`Ritmo semanal en ${SURFACE_LABEL[surface].toLowerCase()}`}
+                      points={weeklyPace(list).filter((p) => p.surface === surface)}
+                    />
+                  </>
                 ) : (
                   <EmptyState>Sin carreras en este rango.</EmptyState>
                 )}
@@ -89,7 +101,7 @@ export default async function RunsPage({ searchParams }: PageProps<"/carrera">) 
         </p>
         {runs.length ? (
           <div className="-mx-4 relative overflow-x-auto sm:mx-0">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[700px] text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-muted">
                 <tr className="border-b border-border">
                   <th className="px-4 py-2 font-medium sm:px-2">Fecha</th>
@@ -98,6 +110,7 @@ export default async function RunsPage({ searchParams }: PageProps<"/carrera">) 
                   <th className="px-2 py-2 text-right font-medium">Tiempo</th>
                   <th className="px-2 py-2 text-right font-medium">Ritmo</th>
                   <th className="px-2 py-2 text-right font-medium">Desnivel</th>
+                  <th className="px-2 py-2 text-right font-medium">Esfuerzo</th>
                   <th className="px-2 py-2 text-right font-medium">vs. comparables</th>
                   <th className="px-2 py-2"><span className="sr-only">Acciones</span></th>
                 </tr>
@@ -116,6 +129,7 @@ export default async function RunsPage({ searchParams }: PageProps<"/carrera">) 
                       <td className="px-2 py-1 text-right num">{formatDuration(r.duration_s)}</td>
                       <td className="px-2 py-1 text-right text-strong num">{formatPace(paceSecPerKm(r))}</td>
                       <td className="px-2 py-1 text-right num">{r.elevation_gain_m} m</td>
+                      <td className="px-2 py-1 text-right num">{r.effort ?? <span className="text-muted">—</span>}</td>
                       <td className="px-2 py-1 text-right num">
                         {delta === null ? (
                           <span className="text-muted">—</span>

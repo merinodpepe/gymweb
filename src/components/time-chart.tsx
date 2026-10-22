@@ -48,6 +48,7 @@ export function TimeChart({
   height = 260,
   ariaLabel,
   zeroBased = false,
+  includeZero = false,
   format = "number",
 }: {
   data: ChartRow[];
@@ -57,6 +58,8 @@ export function TimeChart({
   height?: number;
   ariaLabel: string;
   zeroBased?: boolean;
+  /** Keeps 0 inside the axis while letting negative values show (bars of changes). */
+  includeZero?: boolean;
   /** "pace": values are seconds per km, shown as m:ss. */
   format?: "number" | "pace";
 }) {
@@ -120,7 +123,13 @@ export function TimeChart({
               stroke="var(--border)"
               tickLine={false}
               axisLine={false}
-              domain={zeroBased ? [0, "auto"] : ["auto", "auto"]}
+              domain={
+                zeroBased
+                  ? [0, "auto"]
+                  : includeZero
+                    ? [(min: number) => Math.min(0, min), (max: number) => Math.max(0, max)]
+                    : ["auto", "auto"]
+              }
               reversed={format === "pace"}
               tickFormatter={(v: number) => fmt(v).replace(/,0+$/, "")}
             />

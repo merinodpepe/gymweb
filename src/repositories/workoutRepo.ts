@@ -23,6 +23,9 @@ export interface ExerciseHistoryRow {
   name: string;
   canonical_name: string;
   sets: WorkoutSet[];
+  routine_name: string;
+  /** 0-based position of the exercise inside its workout. */
+  position: number;
 }
 
 export interface WorkoutRepo {
@@ -139,6 +142,8 @@ export const workoutRepo: WorkoutRepo = {
         name: workoutExercises.name,
         canonical_name: workoutExercises.canonicalName,
         sets: workoutExercises.sets,
+        routine_name: workouts.routineName,
+        position: workoutExercises.position,
       })
       .from(workoutExercises)
       .innerJoin(workouts, eq(workouts.id, workoutExercises.workoutId))

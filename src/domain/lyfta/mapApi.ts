@@ -33,6 +33,8 @@ export interface ApiSummary {
 
 /** Lyfta's `set_type_id` for a warm-up set. */
 const WARMUP_SET_TYPE = 1;
+/** Lyfta's `set_type_id` for a set taken to failure (seen on a test workout, 22 oct 2026). */
+export const FAILURE_SET_TYPE = 4;
 /**
  * The only exercise type whose volume Lyfta doubles: two dumbbells moved together. One-dumbbell types
  * (`db_1_alt_sides`, `db_1_both_sides`) count once. Checked against all 89 workouts of the real account.
@@ -102,6 +104,7 @@ export function mapApiWorkout(w: ApiWorkout, summary: ApiSummary | undefined, { 
         weight_kg: toNumber(s.weight),
         reps: Math.round(toNumber(s.reps)),
         is_warmup: toNumber(s.set_type_id) === WARMUP_SET_TYPE,
+        ...(toNumber(s.set_type_id) === FAILURE_SET_TYPE && { is_failure: true as const }),
         ...(bw !== undefined && { bodyweight_kg: bw }),
         ...(dumbbell && { dumbbell_pair: true as const }),
       }));

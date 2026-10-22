@@ -3,6 +3,7 @@ import "server-only";
 import { bodyRepo } from "@/repositories/bodyRepo";
 import { runRepo } from "@/repositories/runRepo";
 import { analyzeSteps, analyzeWeight } from "@/domain/stats/bodyTrend";
+import { weeklyWeightChange } from "@/domain/insights/data";
 import { summarizeRuns } from "@/domain/stats/pace";
 import { calibrateScales, SCALE_WINDOW_DAYS } from "@/domain/stats/scaleCalibration";
 import { addDays, isoWeekStart } from "@/domain/stats/weeks";
@@ -45,10 +46,20 @@ export async function getDashboard(range = "90d") {
       raw: measured.map(({ date, value }) => ({ date, value })),
       currentScale: weight.current ? (weighIns.find((w) => w.date === weight.current!.date)?.scale ?? null) : null,
       scales: calibration.scales,
+      /** Weekly change of the EWMA weight (kg), complete weeks only. */
+      weeklyChange: inRange(
+        weeklyWeightChange(corrected, today).map((w) => ({ date: w.week_start, value: Math.round(w.change_kg * 100) / 100 })),
+      ),
       ewma: inRange(weight.ewma),
       ma7: inRange(weight.ma7),
     },
     scaleNames,
+    /** Energy (1–10) and body measurements, as logged. */
+    measures: {
+      energy: inRange(body.filter((b) => b.energy !== null).map((b) => ({ date: b.date, value: b.energy! }))),
+      waist: inRange(body.filter((b) => b.waist_cm !== null).map((b) => ({ date: b.date, value: b.waist_cm! }))),
+      arm: inRange(body.filter((b) => b.arm_cm !== null).map((b) => ({ date: b.date, value: b.arm_cm! }))),
+    },
     steps: { ...analyzeSteps(steps, today), series: inRange(steps) },
     runs: {
       week: {

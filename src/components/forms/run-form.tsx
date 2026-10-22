@@ -33,6 +33,7 @@ export function RunForm({ today }: { today: string }) {
             duration_s: parseDuration(String(v.duration ?? "")),
             elevation_gain_m: v.elevation_gain_m || 0,
             surface: v.surface,
+            effort: v.effort || undefined,
             notes: String(v.notes ?? "") || null,
           },
           "Carrera guardada",
@@ -57,6 +58,9 @@ export function RunForm({ today }: { today: string }) {
       </Field>
       <Field label="Desnivel + (m)" htmlFor="run-elev" error={errors.elevation_gain_m}>
         <Input id="run-elev" name="elevation_gain_m" inputMode="numeric" placeholder="0" />
+      </Field>
+      <Field label="Esfuerzo (1-10)" htmlFor="run-effort" hint="Opcional: 1 muy fácil, 10 máximo" error={errors.effort}>
+        <Input id="run-effort" name="effort" inputMode="numeric" placeholder="6" />
       </Field>
       <Field label="Notas" htmlFor="run-notes" error={errors.notes}>
         <Input id="run-notes" name="notes" placeholder="Opcional" />

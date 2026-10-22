@@ -13,6 +13,9 @@ export function SetRow({ set, index }: { set: WorkoutSet; index: number }) {
         {set.dumbbell_pair && <span className="text-muted">2 × </span>}
         {fmtKg(set.weight_kg)} kg × {set.reps}
       </span>
+      {set.is_failure && (
+        <span className="rounded border border-accent/50 px-1.5 text-xs font-medium text-accent">fallo</span>
+      )}
       {set.is_warmup ? (
         <span className="text-xs italic">calentamiento</span>
       ) : isE1rmEligible(set) ? (

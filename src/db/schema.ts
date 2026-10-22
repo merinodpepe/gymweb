@@ -21,6 +21,10 @@ export const bodyLog = pgTable("body_log", {
   steps: integer("steps"),
   /** Free-text scale name, so the bias between scales can be estimated. */
   scale: text("scale"),
+  /** Subjective energy of the day, 1–10. */
+  energy: integer("energy"),
+  waistCm: numeric("waist_cm", { precision: 4, scale: 1 }),
+  armCm: numeric("arm_cm", { precision: 4, scale: 1 }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -43,8 +47,11 @@ export const runs = pgTable(
     elevationGainM: integer("elevation_gain_m").notNull().default(0),
     surface: text("surface", { enum: ["treadmill", "outdoor"] }).notNull(),
     notes: text("notes"),
+    /** Perceived effort, 1 (very easy) to 10 (maximal). */
+    effort: integer("effort"),
   },
   (t) => [
+    check("runs_effort_range", sql`${t.effort} is null or ${t.effort} between 1 and 10`),
     check("runs_distance_pos", sql`${t.distanceKm} > 0`),
     check("runs_duration_pos", sql`${t.durationS} > 0`),
     check("runs_surface", sql`${t.surface} in ('treadmill','outdoor')`),

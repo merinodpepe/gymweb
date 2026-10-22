@@ -29,6 +29,13 @@
       "when": 1792574464573,
       "tag": "0003_google_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792700717945,
+      "tag": "0004_effort_energy_measures",
+      "breakpoints": true
     }
   ]
 }

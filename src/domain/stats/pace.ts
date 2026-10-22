@@ -6,6 +6,8 @@ export interface RunLike {
   duration_s: number;
   elevation_gain_m?: number;
   surface: Surface;
+  /** Perceived effort 1–10, when recorded. */
+  effort?: number | null;
 }
 
 /** Pace in seconds per km of a single run (derived, never stored). */

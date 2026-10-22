@@ -21,6 +21,7 @@ const toRow = (r: DbRun): RunRow => ({
   elevation_gain_m: r.elevationGainM,
   surface: r.surface,
   notes: r.notes,
+  effort: r.effort,
 });
 const toDb = (r: RunInput) => ({
   date: r.date,
@@ -29,6 +30,7 @@ const toDb = (r: RunInput) => ({
   elevationGainM: r.elevation_gain_m ?? 0,
   surface: r.surface,
   notes: r.notes || null,
+  effort: r.effort ?? null,
 });
 
 export const runRepo: RunRepo = {

@@ -36,6 +36,7 @@ export async function getExerciseProgress(canonicalName: string) {
     sessions: sessions.map((s) => ({ date: s.date, sets: s.sets, e1rm: sessionE1rm(s.sets) })),
     trend,
     prs,
+    plateau: detectPlateau(points, trend.label),
   };
 }
 

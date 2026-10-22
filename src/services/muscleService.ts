@@ -15,3 +15,26 @@ export async function fillMissingMuscleGroups(rawNames: readonly string[]) {
   await exerciseAliasRepo.fillMuscleGroups(found);
   return { filled: found.size, unmatched: missing.filter((n) => !found.has(n)) };
 }
+
+/**
+ * Resolves the muscle group (manual alias first, then the dataset match) and the secondary muscles of an exercise.
+ * Loads the aliases once; the returned functions are synchronous.
+ */
+export async function loadMuscleResolver() {
+  const aliases = await exerciseAliasRepo.list();
+  const groupOf = new Map<string, string>();
+  for (const a of aliases) if (a.muscle_group) groupOf.set(a.raw_name, a.muscle_group);
+  for (const a of aliases) if (a.muscle_group && !groupOf.has(a.canonical_name)) groupOf.set(a.canonical_name, a.muscle_group);
+
+  const rows = dataset as unknown as DatasetRow[];
+  const cache = new Map<string, ReturnType<typeof matchMuscle>>();
+  const matchOf = (name: string) => {
+    let m = cache.get(name);
+    if (!m) cache.set(name, (m = matchMuscle(name, rows)));
+    return m;
+  };
+  return {
+    group: (name: string, canonical: string) => groupOf.get(name) ?? groupOf.get(canonical) ?? matchOf(name).group,
+    secondary: (name: string) => matchOf(name).secondary,
+  };
+}

@@ -1,17 +1,22 @@
 import { DbMissing, hasDatabase } from "@/components/db-missing";
 import { BodyForm } from "@/components/forms/body-form";
+import { MeasuresForm } from "@/components/forms/measures-form";
 import { StepsForm } from "@/components/forms/steps-form";
+import { AlertsCard } from "@/components/alerts-card";
 import { KpiCard } from "@/components/kpi-card";
 import { ProgressBar } from "@/components/progress-bar";
 import { normalizeRange, RangeTabs } from "@/components/range-tabs";
 import { TimeChart } from "@/components/time-chart";
 import { TrendBadge } from "@/components/trend-badge";
+import { WeekdaySteps } from "@/components/weekday-steps";
 import { Card, CardTitle, EmptyState, PageHeader } from "@/components/ui";
+import { weekdayProfile } from "@/domain/insights/charts";
 import { formatPace } from "@/domain/stats/pace";
 import { fmt, fmtDate, fmtSigned } from "@/lib/format";
 import { goals } from "@/lib/goals";
 import { mergeSeries } from "@/lib/series";
 import { getDashboard } from "@/services/dashboardService";
+import { getAlerts } from "@/services/insightsService";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const range = normalizeRange((await searchParams).range);
@@ -23,11 +28,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
       </>
     );
 
-  const d = await getDashboard(range);
+  const [d, alerts] = await Promise.all([getDashboard(range), getAlerts().catch(() => [])]);
   const { weight, steps, runs } = d;
   const weekKm = runs.week.outdoor.distance_km + runs.week.treadmill.distance_km;
   const weightRows = mergeSeries({ raw: weight.raw, ewma: weight.ewma, ma7: weight.ma7 });
   const stepRows = mergeSeries({ steps: steps.series });
+  const changeRows = mergeSeries({ change: weight.weeklyChange });
+  const { measures } = d;
+  const hasMeasures = measures.waist.length + measures.arm.length + measures.energy.length > 0;
+  const measureRows = mergeSeries({ waist: measures.waist, arm: measures.arm });
+  const energyRows = mergeSeries({ energy: measures.energy });
+  const weekdays = weekdayProfile(steps.series, goals.steps);
 
   return (
     <>
@@ -76,6 +87,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           }
         />
       </div>
+
+      <AlertsCard alerts={alerts} className="mt-6" />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -132,6 +145,48 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
         </Card>
       </div>
 
+      <Card className="mt-6">
+        <CardTitle>Energía y medidas</CardTitle>
+        <p className="mb-4 text-xs text-muted">
+          Opcional. Cintura y brazo para no depender solo del peso; la energía del día (1 agotado, 10 genial) para cruzarla con el
+          entreno. No toca el peso ni los pasos del día.
+        </p>
+        <MeasuresForm today={d.today} />
+        {hasMeasures && (
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            {measures.waist.length + measures.arm.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs text-muted">Medidas (cm)</p>
+                <TimeChart
+                  ariaLabel="Cintura y brazo"
+                  data={measureRows}
+                  unit="cm"
+                  height={200}
+                  series={[
+                    { key: "waist", label: "Cintura", color: "var(--accent)", kind: "dots" },
+                    { key: "arm", label: "Brazo", color: "var(--chart-secondary)", kind: "dots" },
+                  ]}
+                />
+              </div>
+            )}
+            {measures.energy.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs text-muted">Energía (1-10)</p>
+                <TimeChart
+                  ariaLabel="Energía del día"
+                  data={energyRows}
+                  unit="/10"
+                  digits={0}
+                  zeroBased
+                  height={200}
+                  series={[{ key: "energy", label: "Energía", color: "var(--accent)", kind: "bar" }]}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
       {weight.scales.length > 0 && (
         <Card className="mt-6">
           <CardTitle>Básculas</CardTitle>
@@ -164,6 +219,25 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
         </Card>
       )}
 
+      {weight.weeklyChange.length > 0 && (
+        <Card className="mt-6">
+          <CardTitle>Cambio de peso por semana</CardTitle>
+          <p className="mb-3 text-xs text-muted">
+            Cuánto cambia la tendencia (EWMA) de una semana a la siguiente. Solo semanas completas con al menos 2 pesajes; sube o baja
+            sin juzgar si es bueno.
+          </p>
+          <TimeChart
+            ariaLabel="Cambio semanal del peso"
+            data={changeRows}
+            unit="kg"
+            digits={2}
+            includeZero
+            height={200}
+            series={[{ key: "change", label: "Cambio semanal", color: "var(--accent)", kind: "bar" }]}
+          />
+        </Card>
+      )}
+
       <Card className="mt-6">
         <CardTitle>Pasos</CardTitle>
         <p className="mb-3 text-xs text-muted">
@@ -183,6 +257,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
           <EmptyState>Aún no hay pasos registrados.</EmptyState>
         )}
       </Card>
+
+      {steps.series.length > 0 && (
+        <Card className="mt-6">
+          <CardTitle>Pasos por día de la semana</CardTitle>
+          <p className="mb-4 text-xs text-muted">¿Qué días te mueves menos? Con los datos del rango elegido arriba.</p>
+          <WeekdaySteps days={weekdays} goal={goals.steps} />
+        </Card>
+      )}
     </>
   );
 }

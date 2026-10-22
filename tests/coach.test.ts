@@ -83,4 +83,48 @@ describe("weeklyCoach", () => {
     expect(g.frequency).toBe(1);
     expect(g.advice).toMatch(/2 sesiones/);
   });
+
+  describe("sets to failure", () => {
+    const withFailure = (date: string, group: string, n: number, failures: number): CoachSession => ({
+      date,
+      muscle_group: group,
+      secondary: [],
+      sets: Array.from({ length: n }, (_, i) => ({ weight_kg: 50, reps: 8, is_warmup: false, ...(i < failures && { is_failure: true as const }) })),
+    });
+    const weeks = ["2026-09-22", "2026-09-29", "2026-10-06"];
+
+    it("counts failure sets per week and the share over direct sets", () => {
+      const items = weeks.map((d) => withFailure(d, "Pecho", 10, 2));
+      const g = group(items, "Pecho");
+      expect(g.weeks[0].failure).toBe(2);
+      expect(g.failure_average).toBe(2);
+      expect(g.failure_share).toBeCloseTo(0.2);
+      expect(g.advice).not.toMatch(/fallo/);
+    });
+
+    it("is silent while no set has ever been marked (not tracked yet)", () => {
+      const g = group(weeks.map((d) => s(d, "Pecho", 10)), "Pecho");
+      expect(weeklyCoach(weeks.map((d) => s(d, "Pecho", 10)), TODAY).tracks_failure).toBe(false);
+      expect(g.failure_share).toBeNull();
+      expect(g.advice).not.toMatch(/fallo/);
+    });
+
+    it("warns about a group never taken to failure once failure is tracked elsewhere", () => {
+      const items = [...weeks.map((d) => withFailure(d, "Pecho", 10, 0)), ...weeks.map((d) => withFailure(d, "Espalda", 10, 3))];
+      const r = weeklyCoach(items, TODAY);
+      expect(r.tracks_failure).toBe(true);
+      expect(r.groups.find((g) => g.group === "Pecho")!.advice).toMatch(/Nunca llegas al fallo/);
+      expect(r.groups.find((g) => g.group === "Espalda")!.advice).not.toMatch(/fallo/);
+    });
+
+    it("warns when more than half of the sets are to failure", () => {
+      const g = group(weeks.map((d) => withFailure(d, "Pecho", 10, 8)), "Pecho");
+      expect(g.advice).toMatch(/80 % de tus series de Pecho son al fallo/);
+    });
+
+    it("does not let untracked earlier weeks dilute the share", () => {
+      const items = [withFailure("2026-09-22", "Pecho", 10, 0), withFailure("2026-09-29", "Pecho", 10, 0), withFailure("2026-10-06", "Pecho", 10, 5)];
+      expect(group(items, "Pecho").failure_share).toBeCloseTo(0.5);
+    });
+  });
 });

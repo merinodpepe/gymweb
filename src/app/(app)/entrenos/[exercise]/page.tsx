@@ -17,7 +17,14 @@ export default async function ExercisePage({ params }: PageProps<"/entrenos/[exe
   if (!p.sessions.length) notFound();
   const { trend, prs } = p;
   const jumps = new Set(trend.realJumps);
-  const rows = mergeSeries({ e1rm: trend.points, ewma: trend.ewma });
+  // Records beaten (not the first value, which is just the starting point), marked on the curve.
+  const e1rmValue = new Map(trend.points.map((pt) => [pt.date, pt.value]));
+  const prPoints = prs.events
+    .filter((e) => e.kind === "e1rm")
+    .slice(1)
+    .flatMap((e) => (e1rmValue.has(e.date) ? [{ date: e.date, value: e1rmValue.get(e.date)! }] : []));
+  const rows = mergeSeries({ e1rm: trend.points, ewma: trend.ewma, pr: prPoints });
+  const stalled = p.plateau.status === "estancado";
 
   return (
     <>
@@ -30,8 +37,15 @@ export default async function ExercisePage({ params }: PageProps<"/entrenos/[exe
         <Card className="lg:col-span-2">
           <CardTitle>e1RM por sesión</CardTitle>
           <p className="mb-3 text-xs text-muted">
-            Mejor serie de trabajo de cada sesión (1–10 reps, media Epley/Brzycki) y su EWMA (α 0,3 por semana).
+            Mejor serie de trabajo de cada sesión (1–10 reps, media Epley/Brzycki) y su EWMA (α 0,3 por semana). Los puntos
+            verdes son récords de e1RM.
           </p>
+          {stalled && (
+            <p className="mb-3 rounded-md border border-accent/50 bg-surface-2 px-3 py-2 text-sm text-text" role="status">
+              <span className="font-medium text-accent">Estancado:</span> {p.plateau.sessions_since_gain} sesiones y{" "}
+              {p.plateau.days_since_gain} días sin superar tu mejor e1RM ({fmt(p.plateau.best_e1rm, 1)} kg).
+            </p>
+          )}
           {trend.points.length ? (
             <TimeChart
               ariaLabel={`Evolución del e1RM en ${name}`}
@@ -39,6 +53,7 @@ export default async function ExercisePage({ params }: PageProps<"/entrenos/[exe
               unit="kg"
               series={[
                 { key: "e1rm", label: "e1RM sesión", color: "var(--chart-raw)", kind: "dots" },
+                ...(prPoints.length ? [{ key: "pr", label: "Récord e1RM", color: "var(--good)", kind: "dots" as const }] : []),
                 ...(trend.ewma.length ? [{ key: "ewma", label: "Tendencia (EWMA)", color: "var(--accent)", kind: "line" as const }] : []),
               ]}
             />

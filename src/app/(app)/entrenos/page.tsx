@@ -3,12 +3,17 @@ import { connection } from "next/server";
 import { DbMissing, hasDatabase } from "@/components/db-missing";
 import { ConsistencyKpis, WorkoutHeatmap } from "@/components/consistency-card";
 import { ExerciseCard } from "@/components/exercise-card";
+import { GroupWeeksChart } from "@/components/group-weeks-chart";
+import { VolumeCalendar } from "@/components/volume-calendar";
 import { DeleteButton } from "@/components/forms/delete-button";
 import { TrendBadge } from "@/components/trend-badge";
 import { Badge, Card, CardTitle, EmptyState, PageHeader } from "@/components/ui";
+import { rangeFor } from "@/domain/coach/volumeTargets";
+import { REP_BUCKETS } from "@/domain/insights/charts";
 import type { ExerciseStatus } from "@/domain/stats/plateau";
 import { fmt, fmtDate, fmtShortDate, fmtSigned } from "@/lib/format";
 import { workoutRepo } from "@/repositories/workoutRepo";
+import { getTrainingCharts } from "@/services/insightsService";
 import { getExerciseOverview, INACTIVE_AFTER_DAYS } from "@/services/progressService";
 
 export const metadata = { title: "Entrenos" };
@@ -32,7 +37,7 @@ export default async function WorkoutsPage() {
       </>
     );
 
-  const [overview, recent] = await Promise.all([getExerciseOverview(), workoutRepo.list({}, 20)]);
+  const [overview, recent, charts] = await Promise.all([getExerciseOverview(), workoutRepo.list({}, 20), getTrainingCharts()]);
   const weeks = overview.weekly.slice(-8);
   const active = overview.exercises.filter((e) => !e.inactive);
   const inactive = overview.exercises.filter((e) => e.inactive);
@@ -56,6 +61,12 @@ export default async function WorkoutsPage() {
         <CardTitle>Constancia</CardTitle>
         <p className="mb-3 text-xs text-muted">Días con entreno en las últimas 26 semanas (columnas = semanas, de lunes a domingo).</p>
         <WorkoutHeatmap weeks={overview.consistency.heatmap} />
+      </Card>
+
+      <Card className="mt-6">
+        <CardTitle>Calendario de entrenos</CardTitle>
+        <p className="mb-4 text-xs text-muted">Últimos 3 meses. Cuanto más color, más tonelaje (kg × reps de las series de trabajo) ese día.</p>
+        <VolumeCalendar months={charts.calendar} />
       </Card>
 
       {(overview.recentPrs.length > 0 || stalled.length > 0) && (
@@ -238,6 +249,105 @@ export default async function WorkoutsPage() {
             </table>
           </div>
         </Card>
+      )}
+
+      {weeks.length > 0 && groups.length > 0 && (
+        <Card className="mt-6">
+          <CardTitle>Series por músculo frente al objetivo</CardTitle>
+          <p className="mb-4 text-xs text-muted">
+            Series de trabajo directas por semana (últimas {weeks.length}). La banda verde es el rango objetivo del Coach; la última semana
+            es parcial.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {groups.map((g) => {
+              const r = rangeFor(g);
+              return (
+                <div key={g}>
+                  <p className="mb-1 flex items-baseline justify-between text-sm">
+                    <span className="font-medium text-strong">{g}</span>
+                    <span className="text-xs text-muted num">objetivo {r.min}–{r.max}</span>
+                  </p>
+                  <GroupWeeksChart
+                    group={g}
+                    min={r.min}
+                    max={r.max}
+                    data={weeks.map((w) => ({ label: fmtShortDate(w.week_start), sets: w.sets_by_group[g] ?? 0, partial: w.partial }))}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {(charts.reps.length > 0 || charts.hours.some((h) => h.n > 0)) && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardTitle>Rango de repeticiones por músculo</CardTitle>
+            <p className="mb-3 text-xs text-muted">
+              Series de trabajo de las últimas 8 semanas por rango de repeticiones. ¿Entrenas siempre en el mismo rango?
+            </p>
+            {charts.reps.length ? (
+              <>
+                <ul className="space-y-2">
+                  {charts.reps.map((r) => (
+                    <li key={r.group} className="grid grid-cols-[6rem_1fr_2.5rem] items-center gap-3 text-sm">
+                      <span className="text-muted">{r.group}</span>
+                      <div
+                        className="flex h-3 overflow-hidden rounded-full bg-surface-2"
+                        role="img"
+                        aria-label={`${r.group}: ${REP_BUCKETS.map((b, i) => `${r.counts[i]} series de ${b} reps`).join(", ")}`}
+                      >
+                        {r.counts.map((n, i) => (
+                          <span
+                            key={i}
+                            style={{ width: `${(n / r.total) * 100}%`, opacity: 0.35 + i * 0.22 }}
+                            className="bg-accent"
+                          />
+                        ))}
+                      </div>
+                      <span className="text-right text-xs text-muted num">{r.total}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted">
+                  {REP_BUCKETS.map((b, i) => (
+                    <span key={b} className="inline-flex items-center gap-1.5">
+                      <span className="inline-block size-3 rounded-sm bg-accent" style={{ opacity: 0.35 + i * 0.22 }} />
+                      {b} reps
+                    </span>
+                  ))}
+                </p>
+              </>
+            ) : (
+              <EmptyState>Sin series con grupo muscular en las últimas 8 semanas.</EmptyState>
+            )}
+          </Card>
+
+          <Card>
+            <CardTitle>Hora del entreno y volumen</CardTitle>
+            <p className="mb-3 text-xs text-muted">Tonelaje medio de los entrenos según la hora local a la que empezaron.</p>
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-muted">
+                <tr className="border-b border-border">
+                  <th className="py-2 font-medium">Hora</th>
+                  <th className="py-2 text-right font-medium">Entrenos</th>
+                  <th className="py-2 text-right font-medium">Tonelaje medio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {charts.hours.map((h) => (
+                  <tr key={h.label} className="border-b border-border/60 last:border-0">
+                    <td className="py-2">{h.label}</td>
+                    <td className="py-2 text-right num">{h.n}</td>
+                    <td className="py-2 text-right text-strong num">{h.mean_tonnage === null ? "—" : `${fmt(h.mean_tonnage, 0)} kg`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-muted">Con pocos entrenos por tramo es solo orientativo: cuenta cada uno antes de sacar conclusiones.</p>
+          </Card>
+        </div>
       )}
 
       {recent.length > 0 && (

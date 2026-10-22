@@ -52,4 +52,16 @@ describe("mapApiWorkout", () => {
     const { workout } = mapApiWorkout(OCT_5, undefined, { timeZone: TZ, dumbbells: new Set(["Lever Military Press"]) });
     expect(workout.exercises[0].sets[1].dumbbell_pair).toBe(true);
   });
+
+  it("marks sets of type 4 as failure and leaves the rest unflagged", () => {
+    const w: ApiWorkout = {
+      ...OCT_5,
+      exercises: [{ excercise_name: "Smith Calf Raise", exercise_type: "weight_reps", sets: [set("71.3", "15", "4"), set("81.3", "15", "0"), set("20", "10", "1")] }],
+    };
+    const [fail, normal, warm] = mapApiWorkout(w, undefined, { timeZone: TZ }).workout.exercises[0].sets;
+    expect(fail).toMatchObject({ weight_kg: 71.3, reps: 15, is_warmup: false, is_failure: true });
+    expect(normal).not.toHaveProperty("is_failure");
+    expect(warm).toMatchObject({ is_warmup: true });
+    expect(warm).not.toHaveProperty("is_failure");
+  });
 });
