@@ -1,4 +1,4 @@
-# GymWeb
+# Pepe Flock: Gym
 
 A personal web app for logging **weight and steps, runs, nutrition (daily totals) and strength training** (pasted from Lyfta), with progression statistics that are done correctly.
 

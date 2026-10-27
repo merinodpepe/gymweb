@@ -1,4 +1,4 @@
-# GymWeb: what you need to do (database + hosting)
+# Pepe Flock: Gym: what you need to do (database + hosting)
 
 The code is finished, tested and pushed to **https://github.com/merinodpepe/gymweb**.
 Only the accounts are missing: Claude can't create those for you. It takes about **15 minutes**, with no terminal needed.

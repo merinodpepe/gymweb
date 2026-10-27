@@ -1,4 +1,4 @@
-import { Dumbbell } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Entrar" };
@@ -10,12 +10,9 @@ export default function LoginPage() {
       style={{ backgroundImage: "linear-gradient(rgba(10,10,10,.82), rgba(10,10,10,.92)), url(/img/hero-1.jpg)" }}
     >
       <div className="w-full max-w-sm rounded-lg border border-[#363636] bg-[#151515]/95 p-6 text-[#c4c4c4] shadow-2xl">
-        <div className="mb-6 flex items-center gap-2">
-          <Dumbbell aria-hidden className="size-7 text-[#f36100]" />
-          <h1 className="font-display text-3xl text-white">
-            Gym<span className="text-[#f36100]">Web</span>
-          </h1>
-        </div>
+        <h1 className="mb-6">
+          <BrandLogo className="h-14" priority />
+        </h1>
         <LoginForm />
       </div>
     </main>

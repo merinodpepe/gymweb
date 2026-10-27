@@ -15,5 +15,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|privacidad|terminos|api/auth/login|api/sync-lyfta/cron|_next/static|_next/image|favicon.ico|icon.svg|img/|fonts/|robots.txt).*)"],
+  matcher: ["/((?!login|privacidad|terminos|api/auth/login|api/sync-lyfta/cron|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|brand/|img/|fonts/|robots.txt).*)"],
 };

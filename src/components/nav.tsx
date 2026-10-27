@@ -2,6 +2,7 @@
 
 import { ChartScatter, ClipboardList, Dumbbell, FileUp, Footprints, LayoutDashboard, Database, Salad } from "lucide-react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { ThemeToggle } from "./theme-toggle";
@@ -24,10 +25,7 @@ export function NavSidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
       <Link href="/" className="flex items-center gap-2 px-6 py-6">
-        <Dumbbell aria-hidden className="size-6 text-accent" />
-        <span className="font-display text-2xl text-strong">
-          Gym<span className="text-accent">Web</span>
-        </span>
+        <BrandLogo className="h-10" priority />
       </Link>
       <nav aria-label="Principal" className="flex flex-1 flex-col gap-1 px-3">
         {ITEMS.map(({ href, label, icon: Icon }) => (

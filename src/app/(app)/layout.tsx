@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Dumbbell } from "lucide-react";
 import { AutoSync } from "@/components/auto-sync";
+import { BrandLogo } from "@/components/brand-logo";
 import { NavBottom, NavSidebar } from "@/components/nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -15,11 +15,8 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       </a>
       <NavSidebar />
       <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-2 lg:hidden">
-        <Link href="/" className="flex items-center gap-2">
-          <Dumbbell aria-hidden className="size-5 text-accent" />
-          <span className="font-display text-xl text-strong">
-            Gym<span className="text-accent">Web</span>
-          </span>
+        <Link href="/" className="flex items-center">
+          <BrandLogo />
         </Link>
         <div className="flex items-center">
           <ThemeToggle />

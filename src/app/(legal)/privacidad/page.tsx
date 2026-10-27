@@ -7,7 +7,7 @@ export default function PrivacyPage() {
       <p className="text-sm text-muted">Última actualización: 21 de octubre de 2026</p>
 
       <p>
-        GymWeb es una aplicación web personal, de uso privado, para llevar el registro propio de peso, pasos, carrera,
+        Pepe Flock: Gym es una aplicación web personal, de uso privado, para llevar el registro propio de peso, pasos, carrera,
         nutrición y entrenamientos de fuerza. Está desarrollada y usada por una única persona, su titular. No ofrece
         registro de usuarios ni se presta a terceros.
       </p>
@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       <ul>
         <li>Los datos que el titular introduce o importa: peso, pasos, carreras, nutrición y entrenamientos (por ejemplo, de Lyfta).</li>
         <li>
-          Si el titular lo autoriza, los <strong>pasos diarios</strong> de su cuenta de Google Health. GymWeb solo pide
+          Si el titular lo autoriza, los <strong>pasos diarios</strong> de su cuenta de Google Health. Pepe Flock: Gym solo pide
           permiso de lectura de actividad (<code>googlehealth.activity_and_fitness.readonly</code>) y no lee ni escribe ningún otro dato de Google.
         </li>
         <li>Un token de renovación de Google, guardado cifrado, para poder repetir la lectura de pasos sin volver a pedir permiso.</li>
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
         incluidos los requisitos de uso limitado.
       </p>
       <p className="text-sm text-muted">
-        GymWeb&apos;s use and transfer to any other app of information received from Google APIs will adhere to the Google
+        Pepe Flock: Gym&apos;s use and transfer to any other app of information received from Google APIs will adhere to the Google
         API Services User Data Policy, including the Limited Use requirements.
       </p>
 

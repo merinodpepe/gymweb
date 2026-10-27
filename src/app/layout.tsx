@@ -6,7 +6,7 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const oswald = Oswald({ variable: "--font-oswald", subsets: ["latin"], weight: ["400", "500", "600"] });
 
 export const metadata: Metadata = {
-  title: { default: "GymWeb", template: "%s · GymWeb" },
+  title: { default: "Pepe Flock: Gym", template: "%s · Pepe Flock: Gym" },
   description: "Registro personal de peso, pasos, carrera, nutrición y fuerza.",
   robots: { index: false, follow: false },
 };

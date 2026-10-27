@@ -63,7 +63,7 @@ async function tokenRequest(params: Record<string, string>) {
 export async function connectWithCode(code: string, origin: string): Promise<void> {
   const body = await tokenRequest({ grant_type: "authorization_code", code, redirect_uri: redirectUri(origin) });
   if (!body.refresh_token) {
-    throw new GoogleHealthError("Google no devolvió un token de renovación: quita el acceso de GymWeb en tu cuenta de Google y conecta de nuevo.");
+    throw new GoogleHealthError("Google no devolvió un token de renovación: quita el acceso de Pepe Flock: Gym en tu cuenta de Google y conecta de nuevo.");
   }
   const granted = body.scope ?? "";
   const missing = GOOGLE_SCOPES.filter((s) => !granted.split(" ").includes(s));

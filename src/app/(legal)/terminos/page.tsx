@@ -6,9 +6,9 @@ export default function TermsPage() {
       <h1>Términos del servicio</h1>
       <p className="text-sm text-muted">Última actualización: 21 de octubre de 2026</p>
 
-      <h2>Qué es GymWeb</h2>
+      <h2>Qué es Pepe Flock: Gym</h2>
       <p>
-        GymWeb es una aplicación personal de seguimiento de peso, pasos, carrera, nutrición y fuerza. Es de uso privado
+        Pepe Flock: Gym es una aplicación personal de seguimiento de peso, pasos, carrera, nutrición y fuerza. Es de uso privado
         de su titular y no es un servicio abierto al público.
       </p>
 
