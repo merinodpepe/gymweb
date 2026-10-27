@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { analyzeSteps, analyzeWeight } from "@/domain/stats/bodyTrend";
 import { computePrs } from "@/domain/stats/prs";
 import { acuteChronicRatio, weeklyVolume } from "@/domain/stats/volume";
-import { isoWeekKey, isoWeekStart, todayIso } from "@/domain/stats/weeks";
+import { isoWeekKey, isoWeekStart, nowLocalIso, todayIso } from "@/domain/stats/weeks";
 
 describe("weeks", () => {
   it("computes ISO weeks", () => {
@@ -13,6 +13,8 @@ describe("weeks", () => {
   });
   it("today in Madrid", () => {
     expect(todayIso(new Date("2025-06-30T22:30:00Z"), "Europe/Madrid")).toBe("2025-07-01");
+    expect(nowLocalIso(new Date("2025-06-30T22:30:00Z"), "Europe/Madrid")).toBe("2025-07-01T00:30");
+    expect(nowLocalIso(new Date("2025-01-15T09:05:00Z"), "Europe/Madrid")).toBe("2025-01-15T10:05");
   });
 });
 

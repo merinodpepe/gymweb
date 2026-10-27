@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { BodyHeatmap } from "@/components/body-heatmap";
+import { BodyHeatmap, READINESS, ReadinessMap } from "@/components/body-heatmap";
 import { DbMissing, hasDatabase } from "@/components/db-missing";
 import { Card, CardTitle, EmptyState, PageHeader } from "@/components/ui";
 import type { VolumeStatus } from "@/domain/coach/volumeTargets";
@@ -36,13 +36,16 @@ function RangeBar({ g, value, bar, label }: { g: GroupReport; value: number; bar
   );
 }
 
+const MAP_LABEL = { semana: "Esta semana", media: "Media 3 semanas", recuperacion: "Recuperación" } as const;
+
 function Row({ children }: { children: React.ReactNode }) {
   return <li className="border-b border-border/60 py-4 first:pt-0 last:border-0 last:pb-0">{children}</li>;
 }
 
 export default async function CoachPage({ searchParams }: PageProps<"/coach">) {
   await connection();
-  const mapa = (await searchParams).mapa === "media" ? "media" : "semana";
+  const param = (await searchParams).mapa;
+  const mapa = param === "media" || param === "recuperacion" ? param : "semana";
   if (!hasDatabase())
     return (
       <>
@@ -77,26 +80,53 @@ export default async function CoachPage({ searchParams }: PageProps<"/coach">) {
           <Card>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <CardTitle>Mapa muscular</CardTitle>
-              <nav aria-label="Periodo del mapa" className="flex gap-1 text-sm">
-                {(["semana", "media"] as const).map((m) => (
+              <nav aria-label="Periodo del mapa" className="flex flex-wrap gap-1 text-sm">
+                {(["semana", "media", "recuperacion"] as const).map((m) => (
                   <Link
                     key={m}
-                    href={m === "semana" ? "/coach" : "/coach?mapa=media"}
+                    href={m === "semana" ? "/coach" : `/coach?mapa=${m}`}
                     aria-current={mapa === m ? "page" : undefined}
                     className={cn(
-                      "inline-flex min-h-11 items-center rounded-md px-3 text-muted hover:text-strong",
+                      "inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 text-muted hover:text-strong",
                       mapa === m && "bg-surface-2 text-strong",
                     )}
                   >
-                    {m === "semana" ? "Esta semana" : "Media 3 semanas"}
+                    {MAP_LABEL[m]}
                   </Link>
                 ))}
               </nav>
             </div>
-            <p className="mb-4 text-xs text-muted">
-              Cuanto más color, más series efectivas frente al máximo semanal recomendado de cada músculo.
-            </p>
-            <BodyHeatmap groups={report.groups} value={(g) => (mapa === "media" ? g.average : g.current.total)} />
+            {mapa === "recuperacion" ? (
+              <>
+                <p className="mb-4 text-xs text-muted">
+                  Cuánto se ha recuperado cada músculo según las series de los últimos días (las de músculos secundarios
+                  cuentan la mitad y las series al fallo, algo más). Orientativo.
+                </p>
+                <ReadinessMap groups={report.readiness} />
+                <ul className="mx-auto mt-4 grid max-w-md gap-1 text-sm">
+                  {report.readiness.map((g) => (
+                    <li key={g.group} className="flex items-baseline justify-between gap-3">
+                      <span className="flex items-center gap-2 text-strong">
+                        <span aria-hidden className="size-2.5 rounded-full" style={{ background: READINESS[g.level].color }} />
+                        {g.group}
+                      </span>
+                      <span className="num text-muted">
+                        <span className="text-strong">{Math.round(g.readiness * 100)} %</span>
+                        {" · "}
+                        {g.hours_to_ready > 0 ? `listo en ~${g.hours_to_ready} h` : "listo"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <p className="mb-4 text-xs text-muted">
+                  Cuanto más color, más series efectivas frente al máximo semanal recomendado de cada músculo.
+                </p>
+                <BodyHeatmap groups={report.groups} value={(g) => (mapa === "media" ? g.average : g.current.total)} />
+              </>
+            )}
           </Card>
 
           <Card>

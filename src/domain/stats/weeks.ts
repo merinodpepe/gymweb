@@ -43,3 +43,21 @@ export const APP_TIME_ZONE = process.env.APP_TIME_ZONE ?? "Europe/Madrid";
 export function todayIso(now: Date = new Date(), timeZone = APP_TIME_ZONE): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
+
+/** Current local time in the app's time zone, as `YYYY-MM-DDTHH:mm`. */
+export function nowLocalIso(now: Date = new Date(), timeZone = APP_TIME_ZONE): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(now)
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}

@@ -1,6 +1,7 @@
 import "server-only";
+import { muscleReadiness } from "@/domain/coach/readiness";
 import { type CoachSession, weeklyCoach } from "@/domain/coach/weeklyCoach";
-import { addDays, todayIso } from "@/domain/stats/weeks";
+import { addDays, nowLocalIso, todayIso } from "@/domain/stats/weeks";
 import { workoutRepo } from "@/repositories/workoutRepo";
 import { loadMuscleResolver } from "@/services/muscleService";
 
@@ -17,5 +18,5 @@ export async function getCoachReport() {
       secondary: muscles.secondary(r.name),
       sets: r.sets,
     }));
-  return weeklyCoach(items, today);
+  return { ...weeklyCoach(items, today), readiness: muscleReadiness(items, nowLocalIso()) };
 }
